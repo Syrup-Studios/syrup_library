@@ -8,7 +8,7 @@ structured for Fabric, Forge, and NeoForge builds.
 The current Fabric artifact is published as:
 
 ```text
-net.syrupstudios:syrup_library:0.1.0+1.20.1-fabric
+net.syrupstudios:syrup_library:0.1.1+1.20.1-fabric
 ```
 
 Consumers can then add it to a Fabric Loom project:
@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation("net.syrupstudios:syrup_library:0.1.0+1.20.1-fabric")
+    modImplementation("net.syrupstudios:syrup_library:0.1.1+1.20.1-fabric")
 }
 ```
 
