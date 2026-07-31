@@ -1,5 +1,7 @@
 package net.syrupstudios.syruplibrary.config;
 
+import de.marhali.json5.Json5;
+import de.marhali.json5.Json5Object;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
 import net.syrupstudios.syruplibrary.config.value.DoubleConfigValue;
 import net.syrupstudios.syruplibrary.config.value.IntConfigValue;
@@ -17,6 +19,8 @@ import java.util.Iterator;
 import java.util.List;
 
 final class DefaultJson5Writer {
+    private static final Json5 JSON5 = new Json5();
+
     private DefaultJson5Writer() {
     }
 
@@ -37,6 +41,47 @@ final class DefaultJson5Writer {
             return true;
         } catch (FileAlreadyExistsException exception) {
             return false;
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    static boolean fillMissing(ConfigSpec spec, Path path, Json5Object existing) throws IOException {
+        Json5Object defaults = JSON5.parse(render(spec)).getAsJson5Object();
+        if (!mergeMissing(existing, defaults)) {
+            return false;
+        }
+
+        writeAtomically(path, JSON5.serialize(existing));
+        return true;
+    }
+
+    private static boolean mergeMissing(Json5Object existing, Json5Object defaults) {
+        boolean changed = false;
+        for (String key : defaults.keySet()) {
+            if (!existing.has(key)) {
+                existing.add(key, defaults.get(key).deepCopy());
+                changed = true;
+                continue;
+            }
+
+            if (existing.get(key).isJson5Object() && defaults.get(key).isJson5Object()) {
+                changed |= mergeMissing(existing.getAsJson5Object(key), defaults.getAsJson5Object(key));
+            }
+        }
+        return changed;
+    }
+
+    private static void writeAtomically(Path path, String contents) throws IOException {
+        Path parent = path.getParent();
+        Path temporary = Files.createTempFile(parent, "." + path.getFileName() + "-", ".tmp");
+        try {
+            Files.writeString(temporary, contents, StandardCharsets.UTF_8);
+            try {
+                Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
+            }
         } finally {
             Files.deleteIfExists(temporary);
         }

@@ -54,6 +54,7 @@ final class ConfigLoader {
                 configuredValues.put(value, parse(value, element, issues));
             }
             findUnknown(root, spec.root(), "", issues);
+            DefaultJson5Writer.fillMissing(spec, registered.path(), root);
 
             ConfigSnapshot configured = new ConfigSnapshot(configuredValues);
             ConfigSnapshot startup;
