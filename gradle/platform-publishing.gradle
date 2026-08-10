@@ -1,4 +1,7 @@
-def minecraftVersion = providers.gradleProperty("deps.minecraft")
+def minecraftVersion = project.property("deps.minecraft").toString()
+if (minecraftVersion == "[VERSIONED]") {
+    throw new GradleException("Publishing requires a resolved Minecraft version")
+}
 def loader = project.name.substring(project.name.lastIndexOf('-') + 1)
 def outputTaskName = tasks.findByName("remapJar") != null ? "remapJar" : "jar"
 def outputFile = tasks.named(outputTaskName).flatMap { it.archiveFile }
@@ -37,5 +40,13 @@ publishMods {
         accessToken = modrinthToken
         minecraftVersions.add(minecraftVersion)
         if (loader == "fabric") requires("fabric-api")
+    }
+}
+
+["publishCurseforge", "publishModrinth"].each { taskName ->
+    tasks.named(taskName).configure {
+        doFirst {
+            logger.lifecycle("Publishing ${project.version} for Minecraft ${minecraftVersion} (${loader})")
+        }
     }
 }
