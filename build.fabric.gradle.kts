@@ -3,6 +3,7 @@ import net.fabricmc.loom.api.LoomGradleExtensionAPI
 plugins {
     id("net.fabricmc.fabric-loom-remap") version "1.17.14" apply false
     id("net.fabricmc.fabric-loom") version "1.17.14" apply false
+    id("me.modmuss50.mod-publish-plugin") version "2.2.0"
     id("maven-publish")
 }
 
@@ -92,3 +93,4 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 apply(from = rootProject.file("gradle/maven-publishing.gradle.kts"))
+apply(from = rootProject.file("gradle/platform-publishing.gradle"))
