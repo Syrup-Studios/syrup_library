@@ -69,7 +69,6 @@ tasks.processResources {
         "authors" to project.property("mod.authors"),
         "license" to project.property("mod.license"),
         "fl" to project.property("deps.fabric_loader"),
-        "fapi" to project.property("deps.fabric_api"),
         "java" to targetJavaVersion
     )
 

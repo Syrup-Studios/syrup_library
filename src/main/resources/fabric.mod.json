@@ -21,6 +21,6 @@
     "fabricloader": ">=${fl}",
     "minecraft": "${mc}",
     "java": ">=${java}",
-    "fabric-api": ">=${fapi}"
+    "fabric-api": "*"
   }
 }
