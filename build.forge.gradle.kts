@@ -5,6 +5,7 @@ plugins {
 
 val mcVersion = property("deps.minecraft") as String
 val forgeVersion = property("deps.forge_version") as String
+val packFormat = (property("deps.pack_format") as String).toInt()
 val targetJavaVersion = (property("deps.java_version") as String).toInt()
 val json5Dependency = "de.marhali:json5-java:" + property("deps.json5")
 
@@ -53,6 +54,7 @@ tasks.processResources {
         "version" to project.version,
         "mc" to mcVersion,
         "forge" to forgeVersion.substringBefore('.'),
+        "packFormat" to packFormat,
         "modName" to project.property("mod.name"),
         "modId" to project.property("mod.id"),
         "modDescription" to project.property("mod.description"),
@@ -60,6 +62,10 @@ tasks.processResources {
         "license" to project.property("mod.license")
     )
     inputs.properties(props)
+    from(rootProject.file("src/main/templates")) {
+        include("pack.mcmeta")
+        expand(props)
+    }
     filesMatching("META-INF/mods.toml") { expand(props) }
     exclude("fabric.mod.json", "META-INF/neoforge.mods.toml")
 }
