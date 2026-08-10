@@ -1,12 +1,12 @@
 plugins {
-    id("net.neoforged.moddev") version "2.0.137"
+    id("net.neoforged.moddev") version "2.0.143"
     id("maven-publish")
 }
 
 val minecraftVersion = property("deps.minecraft") as String
 val neoForgeVersion = property("deps.neoforge_version") as String
-val modernHud = stonecutter.eval(stonecutter.current.version, ">=1.21.11")
-val targetJavaVersion = if (stonecutter.eval(stonecutter.current.version, ">=26")) 25 else 21
+val targetJavaVersion = (property("deps.java_version") as String).toInt()
+val json5Dependency = "de.marhali:json5-java:" + property("deps.json5")
 
 version = "${property("mod.version")}+$minecraftVersion-neoforge"
 group = property("mod.group") as String
@@ -20,16 +20,24 @@ neoForge {
     mods.create(property("mod.id") as String) { sourceSet(sourceSets.main.get()) }
 }
 
-if (modernHud) {
-    sourceSets.main { java.exclude("net/syrupstudios/colorfularmorbar/mixin/**") }
+dependencies {
+    implementation(json5Dependency)
+    jarJar(json5Dependency)
+}
+
+sourceSets.main {
+    java.exclude(
+        "**/loaders/fabric/**",
+        "**/loaders/forge/**"
+    )
 }
 
 java {
     withSourcesJar()
     withJavadocJar()
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.toVersion(targetJavaVersion)
+    targetCompatibility = JavaVersion.toVersion(targetJavaVersion)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -41,25 +49,14 @@ tasks.processResources {
     val props = mapOf(
         "version" to project.version,
         "mc" to minecraftVersion,
-        "packFormat" to project.property("deps.resource_pack_format"),
-        "neoforge" to neoForgeVersion,
         "modName" to project.property("mod.name"),
         "modId" to project.property("mod.id"),
         "modDescription" to project.property("mod.description"),
         "authors" to project.property("mod.authors"),
-        "license" to project.property("mod.license"),
-        "mixinConfig" to if (modernHud) "" else "[[mixins]]\nconfig=\"${project.property("mod.id")}.mixins.json\""
+        "license" to project.property("mod.license")
     )
     inputs.properties(props)
     filesMatching("META-INF/neoforge.mods.toml") { expand(props) }
-    filesMatching("pack.mcmeta") { expand(props) }
-    if (modernHud) {
-        exclude("*.mixins.json")
-    } else {
-        filesMatching("*.mixins.json") {
-            expand("java" to "JAVA_21", "refmapLine" to "")
-        }
-    }
     exclude("fabric.mod.json", "META-INF/mods.toml")
 }
 

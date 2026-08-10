@@ -1,5 +1,3 @@
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 import net.fabricmc.loom.api.LoomGradleExtensionAPI
 
 plugins {
@@ -9,13 +7,8 @@ plugins {
 }
 
 val remappedMinecraft = stonecutter.eval(stonecutter.current.version, "<26")
-val modernHud = stonecutter.eval(stonecutter.current.version, ">=1.21.11")
 val minecraftVersion = property("deps.minecraft") as String
-val targetJavaVersion = when {
-    stonecutter.eval(stonecutter.current.version, ">=26") -> 25
-    stonecutter.eval(stonecutter.current.version, ">=1.20.5") -> 21
-    else -> 17
-}
+val targetJavaVersion = (property("deps.java_version") as String).toInt()
 val requiredJava = JavaVersion.toVersion(targetJavaVersion)
 
 apply(plugin = if (remappedMinecraft) "net.fabricmc.fabric-loom-remap" else "net.fabricmc.fabric-loom")
@@ -48,8 +41,11 @@ loomExtension.apply {
     runConfigs.configureEach { runDir = "run" }
 }
 
-if (modernHud) {
-    sourceSets.main { java.exclude("net/syrupstudios/colorfularmorbar/mixin/**") }
+sourceSets.main {
+    java.exclude(
+        "**/loaders/forge/**",
+        "**/loaders/neoforge/**"
+    )
 }
 
 java {
@@ -63,54 +59,23 @@ java {
     }
 }
 
-val fabricMetadataSource = rootProject.file("src/main/resources/fabric.mod.json")
-val generatedFabricMetadata = layout.buildDirectory.file("generated/fabricMetadata/fabric.mod.generated.json")
-val generateFabricMetadata = tasks.register("generateFabricMetadata") {
-    inputs.file(fabricMetadataSource)
-    inputs.property("modernHud", modernHud)
-    outputs.file(generatedFabricMetadata)
-    doLast {
-        @Suppress("UNCHECKED_CAST")
-        val metadata = JsonSlurper().parse(fabricMetadataSource) as MutableMap<String, Any?>
-        if (modernHud) metadata.remove("mixins")
-
-        generatedFabricMetadata.get().asFile.apply {
-            parentFile.mkdirs()
-            writeText(JsonOutput.prettyPrint(JsonOutput.toJson(metadata)) + "\n")
-        }
-    }
-}
-
 tasks.processResources {
     val props = mapOf(
         "version" to project.version,
         "mc" to minecraftVersion,
-        "packFormat" to project.property("deps.resource_pack_format"),
         "modName" to project.property("mod.name"),
         "modId" to project.property("mod.id"),
         "modDescription" to project.property("mod.description"),
         "authors" to project.property("mod.authors"),
         "license" to project.property("mod.license"),
         "fl" to project.property("deps.fabric_loader"),
-        "fapi" to project.property("deps.fabric_api")
+        "fapi" to project.property("deps.fabric_api"),
+        "java" to targetJavaVersion
     )
 
-    dependsOn(generateFabricMetadata)
     inputs.properties(props)
-    exclude("fabric.mod.json", "META-INF/mods.toml", "META-INF/neoforge.mods.toml")
-    from(generatedFabricMetadata) {
-        rename { "fabric.mod.json" }
-        expand(props)
-    }
-    filesMatching("pack.mcmeta") { expand(props) }
-
-    if (modernHud) {
-        exclude("*.mixins.json")
-    } else {
-        filesMatching("*.mixins.json") {
-            expand("java" to "JAVA_$targetJavaVersion", "refmapLine" to "")
-        }
-    }
+    filesMatching("fabric.mod.json") { expand(props) }
+    exclude("META-INF/mods.toml", "META-INF/neoforge.mods.toml")
 }
 
 tasks.register<Copy>("buildAndCollect") {

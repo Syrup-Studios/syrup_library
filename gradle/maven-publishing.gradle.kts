@@ -22,7 +22,7 @@ extensions.configure<PublishingExtension> {
             pom {
                 name.set("${project.property("mod.name")} ($archiveName)")
                 description.set(project.property("mod.description") as String)
-                url.set("https://github.com/Syrup-Studios/syrup-library")
+                url.set("https://github.com/Syrup-Studios/syrup_library")
 
                 licenses {
                     license {
@@ -39,13 +39,13 @@ extensions.configure<PublishingExtension> {
                     }
                 }
                 scm {
-                    connection.set("scm:git:https://github.com/Syrup-Studios/syrup-library.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/Syrup-Studios/syrup-library.git")
-                    url.set("https://github.com/Syrup-Studios/syrup-library")
+                    connection.set("scm:git:https://github.com/Syrup-Studios/syrup_library.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/Syrup-Studios/syrup_library.git")
+                    url.set("https://github.com/Syrup-Studios/syrup_library")
                 }
                 issueManagement {
                     system.set("GitHub")
-                    url.set("https://github.com/Syrup-Studios/syrup-library/issues")
+                    url.set("https://github.com/Syrup-Studios/syrup_library/issues")
                 }
             }
         }

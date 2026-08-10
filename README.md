@@ -1,17 +1,22 @@
 # Syrup Library
 
-Syrup Library provides reusable, typed configuration for Syrup Studios mods. Its shared source is
-structured for Fabric, Forge, and NeoForge builds.
+Syrup Library provides reusable, typed configuration for Syrup Studios mods. Its shared source
+supports these Minecraft and loader targets:
+
+- Minecraft 1.20.1: Fabric and Forge
+- Minecraft 1.21.1: Fabric and NeoForge
+- Minecraft 1.21.11: Fabric and NeoForge
+- Minecraft 26.2: Fabric and NeoForge
 
 ## Maven coordinates
 
-The current Fabric artifact is published as:
+Each build uses this artifact version format:
 
 ```text
-net.syrupstudios:syrup_library:0.1.1+1.20.1-fabric
+net.syrupstudios:syrup_library:0.1.1+<minecraft>-<loader>
 ```
 
-Consumers can then add it to a Fabric Loom project:
+For example, consumers can add the Minecraft 1.20.1 Fabric build to a Fabric Loom project:
 
 ```kotlin
 repositories {

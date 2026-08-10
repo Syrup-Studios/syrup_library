@@ -3,14 +3,14 @@
   "id": "${modId}",
   "version": "${version}",
   "name": "${modName}",
-  "description": "Typed, documented JSON5 configuration infrastructure for Syrup Studios mods.",
+  "description": "${modDescription}",
   "authors": [
-    "Syrup Studios"
+    "${authors}"
   ],
   "contact": {
     "sources": "https://github.com/Syrup-Studios/syrup_library"
   },
-  "license": "RSL-1.0",
+  "license": "${license}",
   "environment": "*",
   "entrypoints": {
     "main": [
@@ -18,9 +18,9 @@
     ]
   },
   "depends": {
-    "fabricloader": ">=0.19.2",
+    "fabricloader": ">=${fl}",
     "minecraft": "${mc}",
-    "java": ">=17",
-    "fabric-api": "*"
+    "java": ">=${java}",
+    "fabric-api": ">=${fapi}"
   }
 }

@@ -20,6 +20,6 @@ public final class SyrupLibrary {
         }
         SyrupConfigManager.getInstance();
         initialized = true;
-        LOGGER.info("Syrup Library initialized");
+        LOGGER.info("{} initialized", MOD_ID);
     }
 }

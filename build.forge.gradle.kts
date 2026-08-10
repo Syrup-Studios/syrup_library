@@ -1,11 +1,12 @@
 plugins {
-    id("net.neoforged.moddev.legacyforge") version "2.0.137"
+    id("net.neoforged.moddev.legacyforge") version "2.0.143"
     id("maven-publish")
 }
 
 val mcVersion = property("deps.minecraft") as String
 val forgeVersion = property("deps.forge_version") as String
-val targetJavaVersion = 17
+val targetJavaVersion = (property("deps.java_version") as String).toInt()
+val json5Dependency = "de.marhali:json5-java:" + property("deps.json5")
 
 version = "${property("mod.version")}+$mcVersion-forge"
 group = property("mod.group") as String
@@ -22,16 +23,24 @@ legacyForge {
     mods.create(property("mod.id") as String) { sourceSet(sourceSets.main.get()) }
 }
 
+dependencies {
+    implementation(json5Dependency)
+    jarJar(json5Dependency)
+}
+
 sourceSets.main {
-    java.exclude("net/syrupstudios/colorfularmorbar/mixin/**")
+    java.exclude(
+        "**/loaders/fabric/**",
+        "**/loaders/neoforge/**"
+    )
 }
 
 java {
     withSourcesJar()
     withJavadocJar()
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.toVersion(targetJavaVersion)
+    targetCompatibility = JavaVersion.toVersion(targetJavaVersion)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -43,8 +52,7 @@ tasks.processResources {
     val props = mapOf(
         "version" to project.version,
         "mc" to mcVersion,
-        "packFormat" to project.property("deps.resource_pack_format"),
-        "forge" to forgeVersion,
+        "forge" to forgeVersion.substringBefore('.'),
         "modName" to project.property("mod.name"),
         "modId" to project.property("mod.id"),
         "modDescription" to project.property("mod.description"),
@@ -53,8 +61,7 @@ tasks.processResources {
     )
     inputs.properties(props)
     filesMatching("META-INF/mods.toml") { expand(props) }
-    filesMatching("pack.mcmeta") { expand(props) }
-    exclude("fabric.mod.json", "META-INF/neoforge.mods.toml", "*.mixins.json")
+    exclude("fabric.mod.json", "META-INF/neoforge.mods.toml")
 }
 
 tasks.register<Copy>("buildAndCollect") {

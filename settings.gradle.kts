@@ -17,7 +17,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-rootProject.name = "syrup_library"
+rootProject.name = providers.gradleProperty("mod.id").get()
 
 stonecutter {
     create(rootProject) {
@@ -26,6 +26,13 @@ stonecutter {
         }
 
         target("1.20.1", "fabric")
+        target("1.20.1", "forge")
+        target("1.21.1", "fabric")
+        target("1.21.1", "neoforge")
+        target("1.21.11", "fabric")
+        target("1.21.11", "neoforge")
+        target("26.2", "fabric")
+        target("26.2", "neoforge")
 
         vcsVersion = "1.20.1-fabric"
     }

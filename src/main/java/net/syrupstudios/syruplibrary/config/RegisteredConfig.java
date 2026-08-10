@@ -3,6 +3,7 @@ package net.syrupstudios.syruplibrary.config;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigIssue;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigIssueSeverity;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigLoadResult;
+import net.syrupstudios.syruplibrary.SyrupLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +11,7 @@ import java.nio.file.Path;
 
 /** Runtime handle for one registered and initially loaded configuration. */
 public final class RegisteredConfig {
-    private static final Logger LOGGER = LoggerFactory.getLogger("syrup_library/config");
+    private static final Logger LOGGER = LoggerFactory.getLogger(SyrupLibrary.MOD_ID + "/config");
 
     private final ConfigSpec spec;
     private final Path path;
