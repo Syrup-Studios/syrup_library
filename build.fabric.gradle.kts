@@ -20,6 +20,10 @@ base.archivesName = property("mod.id") as String
 
 val loomExtension = extensions.getByType<LoomGradleExtensionAPI>()
 
+repositories {
+    maven("https://maven.terraformersmc.com/releases/") { name = "TerraformersMC" }
+}
+
 dependencies {
     add("minecraft", "com.mojang:minecraft:$minecraftVersion")
     if (remappedMinecraft) add("mappings", loomExtension.officialMojangMappings())
@@ -30,6 +34,21 @@ dependencies {
     val modConfiguration = if (remappedMinecraft) "modImplementation" else "implementation"
     add(modConfiguration, "net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
     add(modConfiguration, "net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
+}
+
+// Mod Menu is optional and never packaged; it is only used to surface the config screens.
+if (remappedMinecraft) {
+    // Intermediary-named Mod Menu builds need remapping, so they use the loom mod configuration.
+    dependencies {
+        add("modCompileOnly", "com.terraformersmc:modmenu:${property("deps.mod_menu")}")
+        add("modLocalRuntime", "com.terraformersmc:modmenu:${property("deps.mod_menu")}")
+    }
+} else {
+    // Minecraft 26 builds compile directly against mojang names, so no remapping is required.
+    dependencies {
+        add("compileOnly", "com.terraformersmc:modmenu:${property("deps.mod_menu")}")
+        add("localRuntime", "com.terraformersmc:modmenu:${property("deps.mod_menu")}")
+    }
 }
 
 loomExtension.apply {

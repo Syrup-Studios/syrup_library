@@ -100,6 +100,30 @@ final class ConfigLoader {
         }
     }
 
+    /** Confirms that edited values survived JSON5 serialization without changing meaning. */
+    static ConfigLoadResult validateSerializedValues(
+            Json5Object root,
+            Map<ConfigValue<?>, Object> editedValues
+    ) {
+        List<ConfigIssue> issues = new ArrayList<>();
+        for (Map.Entry<ConfigValue<?>, Object> entry : editedValues.entrySet()) {
+            ConfigValue<?> value = entry.getKey();
+            Json5Element element = find(root, value.path());
+            Object parsed = parse(value, element, issues);
+            if (!Objects.equals(parsed, entry.getValue())) {
+                issues.add(new ConfigIssue(
+                        value.path(),
+                        ConfigIssueSeverity.ERROR,
+                        "Serialized value does not match the edited value",
+                        parsed,
+                        entry.getValue()
+                ));
+            }
+        }
+        boolean successful = issues.isEmpty();
+        return new ConfigLoadResult(successful, issues, null);
+    }
+
     private static Json5Element find(Json5Object root, String path) {
         Json5Element current = root;
         for (String segment : path.split("\\.")) {
@@ -234,11 +258,11 @@ final class ConfigLoader {
         return fallback;
     }
 
-    private static void findUnknown(Json5Object object, SchemaNode schema, String parentPath,
+    private static void findUnknown(Json5Object object, ConfigSchemaNode schema, String parentPath,
                                     List<ConfigIssue> issues) {
         for (Map.Entry<String, Json5Element> entry : object.entrySet()) {
             String path = parentPath.isEmpty() ? entry.getKey() : parentPath + "." + entry.getKey();
-            SchemaNode known = schema.children.get(entry.getKey());
+            ConfigSchemaNode known = schema.children.get(entry.getKey());
             if (known == null) {
                 issues.add(new ConfigIssue(path, ConfigIssueSeverity.INFORMATION,
                         "Unknown value was ignored", toJava(entry.getValue()), null));

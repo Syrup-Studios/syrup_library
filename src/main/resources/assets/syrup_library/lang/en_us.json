@@ -1,0 +1,15 @@
+{
+  "syrup_library.config.title": "Configuration",
+  "syrup_library.config.file_selection": "Select a Configuration",
+  "syrup_library.config.select_file": "Select a config file to edit",
+  "syrup_library.config.save": "Save",
+  "syrup_library.config.cancel": "Cancel",
+  "syrup_library.config.back": "Back",
+  "syrup_library.config.reset": "Reset",
+  "syrup_library.config.reset_all": "Reset All",
+  "syrup_library.config.reload": "Reload",
+  "syrup_library.config.restart_required": "Requires a restart",
+  "syrup_library.config.invalid": "One or more values are invalid",
+  "syrup_library.config.file_changed": "The config file changed outside the game. Reload the editor before saving.",
+  "syrup_library.config.file_path": "Editing %s"
+}

@@ -15,7 +15,7 @@ import java.util.function.Predicate;
 public abstract class ConfigContainer {
     abstract ConfigSpec spec();
 
-    abstract SchemaNode node();
+    abstract ConfigSchemaNode node();
 
     /** Declares a nested section. */
     public final ConfigSection section(String key, String description) {

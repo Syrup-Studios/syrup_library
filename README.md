@@ -28,6 +28,58 @@ dependencies {
 }
 ```
 
+## Config screens
+
+Syrup Library ships an in-game editor for the configs it registers. It opens through the Fabric
+Mod Menu "Config" button and through the NeoForge mod options page.
+
+### Registering a config owner
+
+Use the new overload so the editor knows which mod owns each config:
+
+```java
+manager.register("example_mod", spec);
+```
+
+The old one-argument form still works; it uses the config ID as the owner:
+
+```java
+manager.register(spec); // owner falls back to spec.id()
+```
+
+If you already use your mod ID as the config ID, `register(spec)` is equivalent to
+`register(spec.id(), spec)` and needs no change.
+
+### Fabric Mod Menu
+
+Mod Menu is an optional, compile-time-only integration. When Mod Menu is installed, Syrup Library
+provides a config screen factory for every mod that owns registered configs, so the Config button
+appears on the Mod Menu page automatically. When Mod Menu is absent, normal config loading is
+unaffected and no Mod Menu classes are loaded.
+
+### NeoForge
+
+Syrup Library attaches each screen to its owning mod during client setup. Consumers do not need
+loader-specific registration code. The registrar is client-only, so dedicated servers do not load
+Minecraft client classes.
+
+### Editing behavior
+
+- A mod with a single config opens the editor directly; multiple configs show a file-selection page.
+- Saving writes only the draft values you changed. Untouched valid values, unknown keys, and
+  sections stay as they are, and comments attached to edited values are kept. If loading had to
+  correct an invalid known value, the next real GUI save also writes that safe value back to disk.
+- String lists use JSON5 array text, such as `["one", "two, three", ""]`. Commas, spaces, and
+  empty strings inside elements are preserved.
+- Values that require a restart keep the startup value effective until the game restarts. After
+  saving such a value the editor shows a restart notice, and a later save works without a false
+  conflict.
+- Formatting can be normalized after a GUI save because the file is re-serialized.
+- If the file changes outside the game while the editor is open, saving refuses to overwrite it and
+  shows a reload button.
+
+The editor changes the local JSON5 file. It does not send configuration changes to a remote server.
+
 ## Remote publishing
 
 This part is more for me, since i know i will forget

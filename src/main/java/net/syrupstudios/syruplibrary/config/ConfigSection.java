@@ -5,9 +5,9 @@ import java.util.List;
 /** A named hierarchical section in a configuration schema. */
 public final class ConfigSection extends ConfigContainer {
     private final ConfigSpec spec;
-    private final SchemaNode node;
+    private final ConfigSchemaNode node;
 
-    ConfigSection(ConfigSpec spec, SchemaNode node) {
+    ConfigSection(ConfigSpec spec, ConfigSchemaNode node) {
         this.spec = spec;
         this.node = node;
     }
@@ -25,5 +25,5 @@ public final class ConfigSection extends ConfigContainer {
     ConfigSpec spec() { return spec; }
 
     @Override
-    SchemaNode node() { return node; }
+    ConfigSchemaNode node() { return node; }
 }

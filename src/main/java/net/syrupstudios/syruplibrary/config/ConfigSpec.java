@@ -18,7 +18,7 @@ public final class ConfigSpec extends ConfigContainer {
 
     private final String id;
     private final List<String> header;
-    private final SchemaNode root = new SchemaNode("", "", List.of());
+    private final ConfigSchemaNode root = new ConfigSchemaNode("", "", List.of());
     private final List<ConfigValue<?>> values = new ArrayList<>();
     private final AtomicBoolean registered = new AtomicBoolean();
     private final AtomicReference<ConfigState> state;
@@ -42,6 +42,9 @@ public final class ConfigSpec extends ConfigContainer {
     /** Returns immutable file header lines. */
     public List<String> header() { return header; }
 
+    /** Returns an immutable public view of the schema tree. */
+    public ConfigSchemaNode schema() { return root; }
+
     /** Returns values in schema declaration order. */
     public List<ConfigValue<?>> values() { return List.copyOf(values); }
 
@@ -49,26 +52,26 @@ public final class ConfigSpec extends ConfigContainer {
     ConfigSpec spec() { return this; }
 
     @Override
-    SchemaNode node() { return root; }
+    ConfigSchemaNode node() { return root; }
 
-    ConfigSection addSection(SchemaNode parent, String key, List<String> description) {
+    ConfigSection addSection(ConfigSchemaNode parent, String key, List<String> description) {
         ensureMutable();
         validateKey(key);
         if (parent.children.containsKey(key)) {
             throw new IllegalArgumentException("Duplicate config path: " + childPath(parent, key));
         }
-        SchemaNode child = new SchemaNode(key, childPath(parent, key), description);
+        ConfigSchemaNode child = new ConfigSchemaNode(key, childPath(parent, key), description);
         parent.children.put(key, child);
         return new ConfigSection(this, child);
     }
 
-    <T extends ConfigValue<?>> T addValue(SchemaNode parent, String key, T value) {
+    <T extends ConfigValue<?>> T addValue(ConfigSchemaNode parent, String key, T value) {
         ensureMutable();
         validateKey(key);
         if (parent.children.containsKey(key)) {
             throw new IllegalArgumentException("Duplicate config path: " + childPath(parent, key));
         }
-        SchemaNode child = new SchemaNode(key, childPath(parent, key), value.description());
+        ConfigSchemaNode child = new ConfigSchemaNode(key, childPath(parent, key), value.description());
         child.value = value;
         parent.children.put(key, child);
         values.add(value);
@@ -76,7 +79,7 @@ public final class ConfigSpec extends ConfigContainer {
         return value;
     }
 
-    String childPath(SchemaNode parent, String key) {
+    String childPath(ConfigSchemaNode parent, String key) {
         return parent.path.isEmpty() ? key : parent.path + "." + key;
     }
 
@@ -107,7 +110,7 @@ public final class ConfigSpec extends ConfigContainer {
         publishDefaults();
     }
 
-    SchemaNode root() { return root; }
+    ConfigSchemaNode root() { return root; }
 
     private void publishDefaults() {
         Map<ConfigValue<?>, Object> defaults = new LinkedHashMap<>();
