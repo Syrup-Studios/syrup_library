@@ -32,4 +32,16 @@ final class ConfigEntryList extends ContainerObjectSelectionList<ConfigEntryWidg
             widget.refresh();
         }
     }
+
+    @Override
+    public int getRowWidth() {
+        return Math.min(600, Math.max(160, this.width - 40));
+    }
+
+    //? if <1.21.11 {
+    @Override
+    protected int getScrollbarPosition() {
+        return this.width / 2 + getRowWidth() / 2 + 6;
+    }
+    //?}
 }

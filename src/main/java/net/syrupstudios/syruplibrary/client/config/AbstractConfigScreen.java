@@ -22,6 +22,7 @@ abstract class AbstractConfigScreen extends Screen {
     //? if >=26 {
     /*@Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        extractBackground(graphics, mouseX, mouseY, partialTick);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         extractConfigContents(graphics, mouseX, mouseY, partialTick);
     }
@@ -31,6 +32,11 @@ abstract class AbstractConfigScreen extends Screen {
      *///?} else {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        //? if >=1.21 {
+        /*renderBackground(graphics, mouseX, mouseY, partialTick);
+         *///?} else {
+        renderBackground(graphics);
+        //?}
         super.render(graphics, mouseX, mouseY, partialTick);
         renderConfigContents(graphics, mouseX, mouseY, partialTick);
     }

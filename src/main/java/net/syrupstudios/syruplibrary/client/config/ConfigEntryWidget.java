@@ -229,15 +229,14 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
             editor.extractRenderState(graphics, mouseX, mouseY, partialTick);
             return;
         }
-        drawText(graphics, ConfigText.valueName(value),
+        drawText(graphics, fittedName(rowLeft),
                 rowLeft + 8, rowTop + 2, COLOR_NAME);
-        if (value.restartRequirement() == RestartRequirement.REQUIRED) {
-            drawText(graphics, Component.literal("[" + Component.translatable("syrup_library.config.restart_required").getString() + "]"),
-                    rowRight - 150, rowTop + 2, COLOR_RESTART);
-        }
         String error = session.errorFor(value);
         if (error != null) {
-            drawText(graphics, Component.literal(error), rowLeft + 8, rowTop + 18, COLOR_ERROR);
+            drawText(graphics, fittedText(error, rowLeft), rowLeft + 8, rowTop + 18, COLOR_ERROR);
+        } else if (value.restartRequirement() == RestartRequirement.REQUIRED) {
+            drawText(graphics, fittedText(Component.translatable("syrup_library.config.restart_required").getString(), rowLeft),
+                    rowLeft + 8, rowTop + 18, COLOR_RESTART);
         }
         editor.extractRenderState(graphics, mouseX, mouseY, partialTick);
         if (resetButton != null) {
@@ -251,15 +250,14 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
             editor.render(graphics, mouseX, mouseY, partialTick);
             return;
         }
-        drawText(graphics, ConfigText.valueName(value),
+        drawText(graphics, fittedName(rowLeft),
                 rowLeft + 8, rowTop + 2, COLOR_NAME);
-        if (value.restartRequirement() == RestartRequirement.REQUIRED) {
-            drawText(graphics, Component.literal("[" + Component.translatable("syrup_library.config.restart_required").getString() + "]"),
-                    rowRight - 150, rowTop + 2, COLOR_RESTART);
-        }
         String error = session.errorFor(value);
         if (error != null) {
-            drawText(graphics, Component.literal(error), rowLeft + 8, rowTop + 18, COLOR_ERROR);
+            drawText(graphics, fittedText(error, rowLeft), rowLeft + 8, rowTop + 18, COLOR_ERROR);
+        } else if (value.restartRequirement() == RestartRequirement.REQUIRED) {
+            drawText(graphics, fittedText(Component.translatable("syrup_library.config.restart_required").getString(), rowLeft),
+                    rowLeft + 8, rowTop + 18, COLOR_RESTART);
         }
         editor.render(graphics, mouseX, mouseY, partialTick);
         if (resetButton != null) {
@@ -270,6 +268,23 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
 
     private Component sectionLabel() {
         return ConfigText.sectionName(section);
+    }
+
+    private Component fittedName(int rowLeft) {
+        return fittedText(ConfigText.valueName(value).getString(), rowLeft);
+    }
+
+    private Component fittedText(String text, int rowLeft) {
+        int maximumWidth = Math.max(20, editor.getX() - 16 - rowLeft);
+        if (screen.fontInstance().width(text) <= maximumWidth) {
+            return Component.literal(text);
+        }
+        String suffix = "...";
+        int end = text.length();
+        while (end > 0 && screen.fontInstance().width(text.substring(0, end) + suffix) > maximumWidth) {
+            end--;
+        }
+        return Component.literal(text.substring(0, end) + suffix);
     }
 
     //? if >=26 {

@@ -16,6 +16,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /** In-game editor for one config section. */
@@ -33,6 +35,7 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
     private ConfigEntryList list;
     private Button saveButton;
     private Button resetAllButton;
+    private Button closeButton;
     private Button reloadButton;
     private Component statusMessage;
     private boolean conflict;
@@ -83,33 +86,31 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
         this.statusMessage = initialStatus;
         this.conflict = false;
 
-        int listBottom = this.height - 40;
+        int listBottom = this.height - 48;
         this.list = new ConfigEntryList(this, this.width, listBottom - 32, 32, listBottom);
         for (ConfigSchemaNode entry : section.children()) {
             list.addEntry(entry);
         }
         addRenderableWidget(list);
 
-        int buttonY = this.height - 28;
-        int startX = this.width / 2 - 155;
         saveButton = addRenderableWidget(Button.builder(
                 Component.translatable("syrup_library.config.save"), button -> save())
-                .bounds(startX, buttonY, 70, 20)
+                .bounds(0, 0, 100, 20)
                 .build());
         resetAllButton = addRenderableWidget(Button.builder(
                 Component.translatable("syrup_library.config.reset_all"), button -> resetAll())
-                .bounds(startX + 80, buttonY, 70, 20)
+                .bounds(0, 0, 100, 20)
                 .build());
-        addRenderableWidget(Button.builder(
+        closeButton = addRenderableWidget(Button.builder(
                 isRootSection()
                         ? Component.translatable("syrup_library.config.cancel")
                         : Component.translatable("syrup_library.config.back"),
                 button -> onClose())
-                .bounds(startX + 160, buttonY, 70, 20)
+                .bounds(0, 0, 100, 20)
                 .build());
         reloadButton = addRenderableWidget(Button.builder(
                 Component.translatable("syrup_library.config.reload"), button -> reload())
-                .bounds(startX + 240, buttonY, 70, 20)
+                .bounds(0, 0, 100, 20)
                 .build());
         reloadButton.visible = false;
         updateButtons();
@@ -129,6 +130,25 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
         }
         if (reloadButton != null) {
             reloadButton.visible = conflict;
+        }
+        layoutFooter();
+    }
+
+    private void layoutFooter() {
+        if (saveButton == null || resetAllButton == null || closeButton == null || reloadButton == null) {
+            return;
+        }
+        List<Button> buttons = new ArrayList<>(List.of(saveButton, resetAllButton, closeButton));
+        if (conflict) buttons.add(reloadButton);
+        int gap = 6;
+        int buttonWidth = Math.max(40, Math.min(100,
+                (this.width - 40 - gap * (buttons.size() - 1)) / buttons.size()));
+        int startX = (this.width - buttonWidth * buttons.size() - gap * (buttons.size() - 1)) / 2;
+        for (int index = 0; index < buttons.size(); index++) {
+            Button button = buttons.get(index);
+            button.setX(startX + index * (buttonWidth + gap));
+            button.setY(this.height - 28);
+            button.setWidth(buttonWidth);
         }
     }
 
@@ -239,6 +259,6 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
 
     private Component subtitle() {
         return Component.translatable(
-                "syrup_library.config.file_path", session.config().path().toString());
+                "syrup_library.config.file_path", session.config().path().getFileName().toString());
     }
 }
