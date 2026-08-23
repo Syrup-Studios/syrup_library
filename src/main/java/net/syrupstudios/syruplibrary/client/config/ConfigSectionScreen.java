@@ -1,6 +1,9 @@
 package net.syrupstudios.syruplibrary.client.config;
 
 import net.syrupstudios.syruplibrary.config.ConfigSchemaNode;
+import net.syrupstudios.syruplibrary.config.ConfigScreenElement;
+import net.syrupstudios.syruplibrary.config.ConfigGroup;
+import net.syrupstudios.syruplibrary.config.ConfigEditPolicy;
 import net.syrupstudios.syruplibrary.config.ConfigSnapshot;
 import net.syrupstudios.syruplibrary.config.RegisteredConfig;
 import net.syrupstudios.syruplibrary.config.RestartRequirement;
@@ -13,12 +16,15 @@ import net.syrupstudios.syruplibrary.config.value.ConfigValue;
 import net.minecraft.client.gui.GuiGraphics;
 //?}
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /** In-game editor for one config section. */
 final class ConfigSectionScreen extends AbstractConfigScreen {
@@ -39,10 +45,14 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
     private Button reloadButton;
     private Component statusMessage;
     private boolean conflict;
+    private String selectedGroupId;
+    private String presentationSignature;
+    private boolean rebuildQueued;
+    private boolean initialized;
 
     private ConfigSectionScreen(Screen parent, ConfigEditSession session, ConfigSchemaNode section,
                                 Component initialStatus) {
-        super(Component.translatable("syrup_library.config.title"));
+        super(ConfigText.configTitle(session.config()));
         this.parent = parent;
         this.session = session;
         this.section = section;
@@ -83,15 +93,24 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
 
     @Override
     protected void init() {
-        this.statusMessage = initialStatus;
-        this.conflict = false;
-
-        int listBottom = this.height - 48;
-        this.list = new ConfigEntryList(this, this.width, listBottom - 32, 32, listBottom);
-        for (ConfigSchemaNode entry : section.children()) {
-            list.addEntry(entry);
+        if (!initialized) {
+            this.statusMessage = initialStatus;
+            this.conflict = false;
+            this.initialized = true;
         }
+
+        List<String> groups = availableGroups();
+        if (selectedGroupId == null || !groups.contains(selectedGroupId)) {
+            selectedGroupId = groups.isEmpty() ? "" : groups.get(0);
+        }
+        boolean showGroups = groups.size() > 1;
+        int listTop = showGroups ? 58 : 32;
+        int listBottom = this.height - 48;
+        this.list = new ConfigEntryList(this, this.width, listBottom - listTop, listTop, listBottom);
+        list.rebuild(visibleElements(selectedGroupId));
         addRenderableWidget(list);
+
+        if (showGroups) addGroupButtons(groups);
 
         saveButton = addRenderableWidget(Button.builder(
                 Component.translatable("syrup_library.config.save"), button -> save())
@@ -113,12 +132,101 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
                 .bounds(0, 0, 100, 20)
                 .build());
         reloadButton.visible = false;
+        presentationSignature = presentationSignature();
+        rebuildQueued = false;
         updateButtons();
     }
 
-    /** Called by entries whenever a draft value changes. */
-    void markChanged() {
+    /** Called by an editor after one value changes. */
+    void markChanged(ConfigValue<?> value) {
+        String signature = presentationSignature();
+        if (!Objects.equals(signature, presentationSignature) && !rebuildQueued) {
+            presentationSignature = signature;
+            rebuildQueued = true;
+            minecraft.execute(this::rebuildWidgets);
+        } else if (list != null) {
+            list.refresh();
+        }
         updateButtons();
+    }
+
+    private void addGroupButtons(List<String> groups) {
+        if (groups.size() > 4) {
+            String id = selectedGroupId;
+            Component label = id.isEmpty() ? Component.translatable("syrup_library.config.default_group")
+                    : ConfigText.groupName(session.config().spec(), group(id));
+            addRenderableWidget(Button.builder(label, ignored -> {
+                int index = groups.indexOf(selectedGroupId);
+                selectGroup(groups.get((index + 1) % groups.size()));
+            }).bounds(width / 2 - 100, 32, 200, 20).build());
+            return;
+        }
+        int gap = 4;
+        int availableWidth = Math.max(100, width - 40);
+        int buttonWidth = Math.max(60, Math.min(120,
+                (availableWidth - gap * (groups.size() - 1)) / groups.size()));
+        int totalWidth = buttonWidth * groups.size() + gap * (groups.size() - 1);
+        int x = (width - totalWidth) / 2;
+        for (int index = 0; index < groups.size(); index++) {
+            String id = groups.get(index);
+            Component label = id.isEmpty() ? Component.translatable("syrup_library.config.default_group")
+                    : ConfigText.groupName(session.config().spec(), group(id));
+            Button button = addRenderableWidget(Button.builder(label, ignored -> selectGroup(id))
+                    .bounds(x + index * (buttonWidth + gap), 32, buttonWidth, 20).build());
+            button.active = !id.equals(selectedGroupId);
+            if (!id.isEmpty()) {
+                Component description = ConfigText.groupDescription(session.config().spec(), group(id));
+                if (!description.getString().isEmpty()) button.setTooltip(Tooltip.create(description));
+            }
+        }
+    }
+
+    private ConfigGroup group(String id) {
+        return section.groups().stream().filter(group -> group.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    private void selectGroup(String id) {
+        selectedGroupId = id;
+        rebuildWidgets();
+    }
+
+    private List<String> availableGroups() {
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (ConfigScreenElement element : section.screenElements()) {
+            if (!isVisible(element)) continue;
+            String id = element.presentation().group().map(ConfigGroup::id).orElse("");
+            if (id.isEmpty() || session.matches(element.presentation().group().orElseThrow().visibilityCondition())) {
+                result.add(id);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private List<ConfigScreenElement> visibleElements(String groupId) {
+        List<ConfigScreenElement> result = new ArrayList<>();
+        for (ConfigScreenElement element : section.screenElements()) {
+            if (!isVisible(element)) continue;
+            String id = element.presentation().group().map(ConfigGroup::id).orElse("");
+            if (id.equals(groupId)) result.add(element);
+        }
+        return result;
+    }
+
+    private boolean isVisible(ConfigScreenElement element) {
+        if (element.presentation().editPolicy() == ConfigEditPolicy.HIDDEN) return false;
+        if (!session.matches(element.presentation().visibilityCondition())) return false;
+        return element.presentation().group()
+                .map(group -> session.matches(group.visibilityCondition()))
+                .orElse(true);
+    }
+
+    private String presentationSignature() {
+        StringBuilder result = new StringBuilder();
+        for (String group : availableGroups()) result.append('[').append(group).append(']');
+        for (ConfigScreenElement element : section.screenElements()) {
+            result.append(isVisible(element) ? '1' : '0');
+        }
+        return result.toString();
     }
 
     private void updateButtons() {
@@ -197,10 +305,30 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
     }
 
     private void resetAll() {
-        session.resetAll();
+        List<ConfigValue<?>> editable = new ArrayList<>();
+        collectEditable(session.config().spec().schema(), editable);
+        session.resetValues(editable);
         list.refresh();
         statusMessage = null;
         updateButtons();
+    }
+
+    private void collectEditable(ConfigSchemaNode parent, List<ConfigValue<?>> output) {
+        for (ConfigScreenElement element : parent.screenElements()) {
+            if (!(element instanceof ConfigSchemaNode node) || !isGloballyVisible(node)) continue;
+            if (node.isSection()) {
+                collectEditable(node, output);
+            } else if (node.presentation().editPolicy() == ConfigEditPolicy.EDITABLE
+                    && session.matches(node.presentation().enabledCondition())) {
+                output.add(node.value());
+            }
+        }
+    }
+
+    private boolean isGloballyVisible(ConfigSchemaNode node) {
+        return node.presentation().editPolicy() != ConfigEditPolicy.HIDDEN
+                && session.matches(node.presentation().visibilityCondition())
+                && node.presentation().group().map(group -> session.matches(group.visibilityCondition())).orElse(true);
     }
 
     private void reload() {
@@ -252,7 +380,7 @@ final class ConfigSectionScreen extends AbstractConfigScreen {
 
     private Component sectionTitle() {
         if (section.path().isEmpty()) {
-            return Component.literal(ConfigText.displayName(session.config().spec().id()));
+            return ConfigText.configTitle(session.config());
         }
         return ConfigText.sectionName(section);
     }

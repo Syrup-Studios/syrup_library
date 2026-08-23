@@ -191,7 +191,7 @@ final class ConfigLoader {
                 }
                 return valid ? parsed : invalid(value, parsed, stringValue.validationMessage(), issues);
             }
-            if (value instanceof StringListConfigValue) {
+            if (value instanceof StringListConfigValue listValue) {
                 if (!element.isJson5Array()) {
                     return wrongType(value, element, "array of strings", issues);
                 }
@@ -201,6 +201,12 @@ final class ConfigLoader {
                         return wrongType(value, element, "array containing only strings", issues);
                     }
                     strings.add(item.getAsString());
+                }
+                if (!listValue.isValid(strings)) {
+                    String message = strings.size() < listValue.minimumSize() || strings.size() > listValue.maximumSize()
+                            ? "List size must be between " + listValue.minimumSize() + " and " + listValue.maximumSize()
+                            : listValue.itemValidationMessage();
+                    return invalid(value, List.copyOf(strings), message, issues);
                 }
                 return List.copyOf(strings);
             }

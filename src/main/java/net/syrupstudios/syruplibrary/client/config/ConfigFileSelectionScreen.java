@@ -33,9 +33,8 @@ final class ConfigFileSelectionScreen extends AbstractConfigScreen {
         int x = (this.width - buttonWidth) / 2;
         int y = 44;
         for (Map.Entry<String, RegisteredConfig> entry : configs.entrySet()) {
-            String configId = entry.getKey();
             RegisteredConfig config = entry.getValue();
-            addRenderableWidget(Button.builder(Component.literal(ConfigText.displayName(configId)), button -> openEditor(config))
+            addRenderableWidget(Button.builder(ConfigText.configTitle(config), button -> openEditor(config))
                     .bounds(x, y, buttonWidth, 20)
                     .build());
             y += 26;

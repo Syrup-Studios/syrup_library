@@ -19,7 +19,58 @@ public abstract class ConfigContainer {
 
     /** Declares a nested section. */
     public final ConfigSection section(String key, String description) {
-        return spec().addSection(node(), key, ConfigSpec.description(description));
+        return sectionEntry(key).description(description).build();
+    }
+
+    /** Starts a fluent declaration for a nested section. */
+    public final SectionBuilder sectionEntry(String key) {
+        return new SectionBuilder(spec(), node(), key);
+    }
+
+    /** Declares a presentation-only group in this section. */
+    public final ConfigGroup group(String id) {
+        return spec().addGroup(node(), id);
+    }
+
+    /** Starts a declaration for a non-persistent information row. */
+    public final ConfigInfoBuilder info(String id) {
+        return new ConfigInfoBuilder(spec(), node(), id);
+    }
+
+    /** Starts a fluent boolean declaration. */
+    public final BooleanEntryBuilder booleanEntry(String key, boolean defaultValue) {
+        return new BooleanEntryBuilder(spec(), node(), key, defaultValue);
+    }
+
+    /** Starts a fluent integer declaration. */
+    public final IntEntryBuilder intEntry(String key, int defaultValue) {
+        return new IntEntryBuilder(spec(), node(), key, defaultValue);
+    }
+
+    /** Starts a fluent long declaration. */
+    public final LongEntryBuilder longEntry(String key, long defaultValue) {
+        return new LongEntryBuilder(spec(), node(), key, defaultValue);
+    }
+
+    /** Starts a fluent double declaration. */
+    public final DoubleEntryBuilder doubleEntry(String key, double defaultValue) {
+        return new DoubleEntryBuilder(spec(), node(), key, defaultValue);
+    }
+
+    /** Starts a fluent string declaration. */
+    public final StringEntryBuilder stringEntry(String key, String defaultValue) {
+        return new StringEntryBuilder(spec(), node(), key, defaultValue);
+    }
+
+    /** Starts a fluent string-list declaration. */
+    public final StringListEntryBuilder stringListEntry(String key, List<String> defaultValue) {
+        return new StringListEntryBuilder(spec(), node(), key, defaultValue);
+    }
+
+    /** Starts a fluent enum declaration. */
+    public final <E extends Enum<E>> EnumEntryBuilder<E> enumEntry(
+            String key, Class<E> enumType, E defaultValue) {
+        return new EnumEntryBuilder<>(spec(), node(), key, enumType, defaultValue);
     }
 
     /** Declares a reloadable boolean. */
@@ -30,9 +81,8 @@ public abstract class ConfigContainer {
     /** Declares a boolean with restart metadata. */
     public final BooleanConfigValue booleanValue(String key, boolean defaultValue, String description,
                                                   RestartRequirement restartRequirement) {
-        String path = spec().childPath(node(), key);
-        return spec().addValue(node(), key, new BooleanConfigValue(
-                spec(), key, path, defaultValue, ConfigSpec.description(description), restartRequirement));
+        return booleanEntry(key, defaultValue).description(description)
+                .restartRequirement(restartRequirement).build();
     }
 
     /** Declares a reloadable bounded integer. */
@@ -44,10 +94,8 @@ public abstract class ConfigContainer {
     /** Declares a bounded integer with restart metadata. */
     public final IntConfigValue intValue(String key, int defaultValue, int minimum, int maximum,
                                          String description, RestartRequirement restartRequirement) {
-        String path = spec().childPath(node(), key);
-        return spec().addValue(node(), key, new IntConfigValue(
-                spec(), key, path, defaultValue, minimum, maximum,
-                ConfigSpec.description(description), restartRequirement));
+        return intEntry(key, defaultValue).range(minimum, maximum).description(description)
+                .restartRequirement(restartRequirement).build();
     }
 
     /** Declares a reloadable bounded long. */
@@ -59,10 +107,8 @@ public abstract class ConfigContainer {
     /** Declares a bounded long with restart metadata. */
     public final LongConfigValue longValue(String key, long defaultValue, long minimum, long maximum,
                                            String description, RestartRequirement restartRequirement) {
-        String path = spec().childPath(node(), key);
-        return spec().addValue(node(), key, new LongConfigValue(
-                spec(), key, path, defaultValue, minimum, maximum,
-                ConfigSpec.description(description), restartRequirement));
+        return longEntry(key, defaultValue).range(minimum, maximum).description(description)
+                .restartRequirement(restartRequirement).build();
     }
 
     /** Declares a reloadable bounded double. */
@@ -74,10 +120,8 @@ public abstract class ConfigContainer {
     /** Declares a bounded double with restart metadata. */
     public final DoubleConfigValue doubleValue(String key, double defaultValue, double minimum, double maximum,
                                                String description, RestartRequirement restartRequirement) {
-        String path = spec().childPath(node(), key);
-        return spec().addValue(node(), key, new DoubleConfigValue(
-                spec(), key, path, defaultValue, minimum, maximum,
-                ConfigSpec.description(description), restartRequirement));
+        return doubleEntry(key, defaultValue).range(minimum, maximum).description(description)
+                .restartRequirement(restartRequirement).build();
     }
 
     /** Declares a reloadable string. */
@@ -108,10 +152,8 @@ public abstract class ConfigContainer {
             Predicate<String> validator,
             String validationMessage
     ) {
-        String path = spec().childPath(node(), key);
-        return spec().addValue(node(), key, new StringConfigValue(
-                spec(), key, path, defaultValue, ConfigSpec.description(description),
-                restartRequirement, validator, validationMessage));
+        return stringEntry(key, defaultValue).description(description)
+                .restartRequirement(restartRequirement).validator(validator, validationMessage).build();
     }
 
     /** Declares a reloadable immutable string list. */
@@ -122,9 +164,8 @@ public abstract class ConfigContainer {
     /** Declares an immutable string list with restart metadata. */
     public final StringListConfigValue stringListValue(String key, List<String> defaultValue, String description,
                                                        RestartRequirement restartRequirement) {
-        String path = spec().childPath(node(), key);
-        return spec().addValue(node(), key, new StringListConfigValue(
-                spec(), key, path, defaultValue, ConfigSpec.description(description), restartRequirement));
+        return stringListEntry(key, defaultValue).description(description)
+                .restartRequirement(restartRequirement).build();
     }
 
     /** Declares a reloadable enum serialized by lowercase constant name. */
@@ -141,8 +182,7 @@ public abstract class ConfigContainer {
             String description,
             RestartRequirement restartRequirement
     ) {
-        String path = spec().childPath(node(), key);
-        return spec().addValue(node(), key, new EnumConfigValue<>(
-                spec(), key, path, enumType, defaultValue, ConfigSpec.description(description), restartRequirement));
+        return enumEntry(key, enumType, defaultValue).description(description)
+                .restartRequirement(restartRequirement).build();
     }
 }

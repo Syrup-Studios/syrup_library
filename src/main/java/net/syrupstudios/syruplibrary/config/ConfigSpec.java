@@ -4,9 +4,12 @@ import net.syrupstudios.syruplibrary.config.value.ConfigValue;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -18,15 +21,18 @@ public final class ConfigSpec extends ConfigContainer {
 
     private final String id;
     private final List<String> header;
-    private final ConfigSchemaNode root = new ConfigSchemaNode("", "", List.of());
+    private final ConfigSchemaNode root;
     private final List<ConfigValue<?>> values = new ArrayList<>();
     private final AtomicBoolean registered = new AtomicBoolean();
     private final AtomicReference<ConfigState> state;
     private volatile boolean sealed;
+    private final String translationPrefix;
 
-    private ConfigSpec(String id, List<String> header) {
+    private ConfigSpec(String id, List<String> header, String translationPrefix) {
         this.id = validateId(id);
         this.header = List.copyOf(header);
+        this.translationPrefix = translationPrefix;
+        this.root = new ConfigSchemaNode(this, "", "", List.of());
         ConfigSnapshot empty = new ConfigSnapshot(Map.of());
         this.state = new AtomicReference<>(new ConfigState(empty, empty, empty));
     }
@@ -42,6 +48,9 @@ public final class ConfigSpec extends ConfigContainer {
     /** Returns immutable file header lines. */
     public List<String> header() { return header; }
 
+    /** Returns the optional client translation-key prefix. */
+    public Optional<String> translationPrefix() { return Optional.ofNullable(translationPrefix); }
+
     /** Returns an immutable public view of the schema tree. */
     public ConfigSchemaNode schema() { return root; }
 
@@ -55,28 +64,66 @@ public final class ConfigSpec extends ConfigContainer {
     ConfigSchemaNode node() { return root; }
 
     ConfigSection addSection(ConfigSchemaNode parent, String key, List<String> description) {
+        return addSection(parent, key, description, ConfigPresentation.DEFAULT);
+    }
+
+    ConfigSection addSection(ConfigSchemaNode parent, String key, List<String> description,
+                             ConfigPresentation presentation) {
         ensureMutable();
         validateKey(key);
         if (parent.children.containsKey(key)) {
             throw new IllegalArgumentException("Duplicate config path: " + childPath(parent, key));
         }
-        ConfigSchemaNode child = new ConfigSchemaNode(key, childPath(parent, key), description);
+        ConfigSchemaNode child = new ConfigSchemaNode(
+                this, key, childPath(parent, key), description, Objects.requireNonNull(presentation, "presentation"));
         parent.children.put(key, child);
+        parent.screenElements.add(child);
         return new ConfigSection(this, child);
     }
 
     <T extends ConfigValue<?>> T addValue(ConfigSchemaNode parent, String key, T value) {
+        return addValue(parent, key, value, ConfigPresentation.DEFAULT);
+    }
+
+    <T extends ConfigValue<?>> T addValue(ConfigSchemaNode parent, String key, T value,
+                                          ConfigPresentation presentation) {
         ensureMutable();
         validateKey(key);
         if (parent.children.containsKey(key)) {
             throw new IllegalArgumentException("Duplicate config path: " + childPath(parent, key));
         }
-        ConfigSchemaNode child = new ConfigSchemaNode(key, childPath(parent, key), value.description());
+        ConfigSchemaNode child = new ConfigSchemaNode(
+                this, key, childPath(parent, key), value.description(), Objects.requireNonNull(presentation, "presentation"));
         child.value = value;
         parent.children.put(key, child);
+        parent.screenElements.add(child);
         values.add(value);
         publishDefaults();
         return value;
+    }
+
+    ConfigInfoRow addInfo(ConfigSchemaNode parent, ConfigInfoRow row) {
+        ensureMutable();
+        Objects.requireNonNull(row, "row");
+        validateKey(row.id());
+        boolean duplicate = parent.screenElements.stream()
+                .anyMatch(element -> element instanceof ConfigInfoRow info && info.id().equals(row.id()));
+        if (duplicate || parent.children.containsKey(row.id())) {
+            throw new IllegalArgumentException("Duplicate screen element ID in " + displayPath(parent) + ": " + row.id());
+        }
+        parent.screenElements.add(row);
+        return row;
+    }
+
+    ConfigGroup addGroup(ConfigSchemaNode parent, String id) {
+        ensureMutable();
+        validateKey(id);
+        if (parent.groups.containsKey(id)) {
+            throw new IllegalArgumentException("Duplicate config group in " + displayPath(parent) + ": " + id);
+        }
+        ConfigGroup group = new ConfigGroup(this, parent, id);
+        parent.groups.put(id, group);
+        return group;
     }
 
     String childPath(ConfigSchemaNode parent, String key) {
@@ -103,6 +150,7 @@ public final class ConfigSpec extends ConfigContainer {
     void publish(ConfigState newState) { state.set(newState); }
 
     void sealForRegistration() {
+        validatePresentation();
         if (!registered.compareAndSet(false, true)) {
             throw new IllegalStateException("Config spec is already registered: " + id);
         }
@@ -121,10 +169,137 @@ public final class ConfigSpec extends ConfigContainer {
         state.set(new ConfigState(snapshot, snapshot, snapshot));
     }
 
-    private void ensureMutable() {
+    void ensureMutable() {
         if (sealed) {
             throw new IllegalStateException("Config spec is sealed after registration: " + id);
         }
+    }
+
+    private void validatePresentation() {
+        validateNodePresentation(root);
+        Map<ConfigValue<?>, Set<ConfigValue<?>>> graph = new LinkedHashMap<>();
+        collectConditionGraph(root, graph);
+        detectConditionCycles(graph);
+    }
+
+    private void validateNodePresentation(ConfigSchemaNode parent) {
+        for (ConfigGroup group : parent.groups.values()) {
+            validateCondition(group.visibilityCondition(), "group " + group.id());
+        }
+        for (ConfigScreenElement element : parent.screenElements) {
+            ConfigPresentation presentation = element.presentation();
+            String target;
+            if (element instanceof ConfigSchemaNode node) {
+                target = node.path();
+                validateGroup(presentation, parent, target);
+                validateCondition(presentation.visibilityCondition(), target);
+                validateCondition(presentation.enabledCondition(), target);
+                if (node.value() != null) validateEditor(node.value(), presentation.editor());
+                if (node.isSection()) validateNodePresentation(node);
+            } else {
+                ConfigInfoRow info = (ConfigInfoRow) element;
+                target = "information row " + info.id();
+                validateGroup(presentation, parent, target);
+                validateCondition(presentation.visibilityCondition(), target);
+            }
+        }
+    }
+
+    private void validateGroup(ConfigPresentation presentation, ConfigSchemaNode parent, String target) {
+        presentation.group().ifPresent(group -> {
+            if (group.spec() != this || group.owner() != parent) {
+                throw new IllegalArgumentException("Config group for " + target + " belongs to another section");
+            }
+        });
+    }
+
+    private void validateCondition(ConfigCondition condition, String target) {
+        for (ConfigValue<?> dependency : condition.dependencies()) {
+            if (!containsIdentity(values, dependency)) {
+                throw new IllegalArgumentException("Condition for " + target + " references another config spec");
+            }
+        }
+    }
+
+    private static boolean containsIdentity(List<ConfigValue<?>> values, ConfigValue<?> candidate) {
+        for (ConfigValue<?> value : values) if (value == candidate) return true;
+        return false;
+    }
+
+    private static void validateEditor(ConfigValue<?> value, ConfigEditorHint editor) {
+        switch (editor.kind()) {
+            case AUTO, CUSTOM -> {
+            }
+            case SLIDER -> {
+                if (!(value instanceof net.syrupstudios.syruplibrary.config.value.IntConfigValue)
+                        && !(value instanceof net.syrupstudios.syruplibrary.config.value.LongConfigValue)
+                        && !(value instanceof net.syrupstudios.syruplibrary.config.value.DoubleConfigValue)) {
+                    throw new IllegalArgumentException("Slider editor requires a numeric value: " + value.path());
+                }
+                Number step = editor.step();
+                if (step != null && value instanceof net.syrupstudios.syruplibrary.config.value.IntConfigValue
+                        && (step.doubleValue() != step.intValue() || step.intValue() <= 0)) {
+                    throw new IllegalArgumentException("Integer slider step must be a positive integer: " + value.path());
+                }
+                if (step != null && value instanceof net.syrupstudios.syruplibrary.config.value.LongConfigValue
+                        && (step.doubleValue() != step.longValue() || step.longValue() <= 0)) {
+                    throw new IllegalArgumentException("Long slider step must be a positive whole number: " + value.path());
+                }
+            }
+            case COLOR, MULTILINE, PATH -> {
+                if (!(value instanceof net.syrupstudios.syruplibrary.config.value.StringConfigValue)) {
+                    throw new IllegalArgumentException(editor.kind() + " editor requires a string value: " + value.path());
+                }
+                if (editor.kind() == ConfigEditorHint.Kind.COLOR) {
+                    String color = (String) value.defaultValue();
+                    String pattern = editor.alpha() ? "#[0-9a-fA-F]{8}" : "#[0-9a-fA-F]{6}";
+                    if (!color.matches(pattern)) {
+                        throw new IllegalArgumentException("Color default must match " + pattern + ": " + value.path());
+                    }
+                }
+            }
+        }
+    }
+
+    private void collectConditionGraph(ConfigSchemaNode parent,
+                                       Map<ConfigValue<?>, Set<ConfigValue<?>>> graph) {
+        for (ConfigScreenElement element : parent.screenElements) {
+            if (!(element instanceof ConfigSchemaNode node)) continue;
+            if (node.value() != null) {
+                LinkedHashSet<ConfigValue<?>> dependencies = new LinkedHashSet<>();
+                dependencies.addAll(node.presentation().visibilityCondition().dependencies());
+                dependencies.addAll(node.presentation().enabledCondition().dependencies());
+                if (dependencies.contains(node.value())) {
+                    throw new IllegalArgumentException("Config entry condition depends on itself: " + node.path());
+                }
+                graph.put(node.value(), Set.copyOf(dependencies));
+            } else {
+                collectConditionGraph(node, graph);
+            }
+        }
+    }
+
+    private static void detectConditionCycles(Map<ConfigValue<?>, Set<ConfigValue<?>>> graph) {
+        Set<ConfigValue<?>> visiting = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        Set<ConfigValue<?>> visited = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (ConfigValue<?> value : graph.keySet()) visit(value, graph, visiting, visited);
+    }
+
+    private static void visit(ConfigValue<?> value, Map<ConfigValue<?>, Set<ConfigValue<?>>> graph,
+                              Set<ConfigValue<?>> visiting, Set<ConfigValue<?>> visited) {
+        if (visited.contains(value)) return;
+        if (!visiting.add(value)) {
+            throw new IllegalArgumentException("Config entry conditions contain a cycle at " + value.path());
+        }
+        for (ConfigValue<?> dependency : graph.getOrDefault(value, Set.of())) {
+            if (graph.containsKey(dependency)) visit(dependency, graph, visiting, visited);
+        }
+        visiting.remove(value);
+        visited.add(value);
+    }
+
+    private static String displayPath(ConfigSchemaNode node) {
+        return node.path.isEmpty() ? "root" : node.path;
     }
 
     private static String validateId(String id) {
@@ -154,6 +329,7 @@ public final class ConfigSpec extends ConfigContainer {
     public static final class Builder {
         private final String id;
         private final List<String> header = new ArrayList<>();
+        private String translationPrefix;
 
         private Builder(String id) {
             this.id = validateId(id);
@@ -170,9 +346,15 @@ public final class ConfigSpec extends ConfigContainer {
             return this;
         }
 
+        /** Sets the translation-key prefix used only by config screens. */
+        public Builder translationPrefix(String prefix) {
+            this.translationPrefix = ConfigPresentation.translationKey(prefix);
+            return this;
+        }
+
         /** Builds an unregistered spec; values and sections may be declared until registration. */
         public ConfigSpec build() {
-            return new ConfigSpec(id, header);
+            return new ConfigSpec(id, header, translationPrefix);
         }
     }
 }

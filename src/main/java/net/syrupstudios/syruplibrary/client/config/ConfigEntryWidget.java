@@ -1,11 +1,10 @@
 package net.syrupstudios.syruplibrary.client.config;
 
+import net.syrupstudios.syruplibrary.config.ConfigEditPolicy;
 import net.syrupstudios.syruplibrary.config.ConfigSchemaNode;
 import net.syrupstudios.syruplibrary.config.RestartRequirement;
 import net.syrupstudios.syruplibrary.config.edit.ConfigEditSession;
-import net.syrupstudios.syruplibrary.config.value.BooleanConfigValue;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
-import net.syrupstudios.syruplibrary.config.value.EnumConfigValue;
 //? if >=26 {
 /*import net.minecraft.client.gui.GuiGraphicsExtractor;
  *///?} else {
@@ -13,9 +12,6 @@ import net.minecraft.client.gui.GuiGraphics;
 //?}
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.ContainerObjectSelectionList;
-import net.minecraft.client.gui.components.CycleButton;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
@@ -23,29 +19,30 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** One row in the config editor, either a nested section or an editable value. */
-final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigEntryWidget> {
+final class ConfigEntryWidget extends ConfigListEntry {
     private static final int COLOR_NAME = 0xFFFFFFFF;
     private static final int COLOR_ERROR = 0xFFFF5555;
     private static final int COLOR_RESTART = 0xFFFFFF55;
+    private static final int COLOR_READ_ONLY = 0xFFA0A0A0;
 
     private final ConfigSectionScreen screen;
     private final ConfigEditSession session;
+    private final ConfigSchemaNode schema;
     private final boolean sectionEntry;
     private final ConfigSchemaNode section;
     private final ConfigValue<?> value;
     private final List<AbstractWidget> childWidgets = new ArrayList<>();
 
     private AbstractWidget editor;
-    private EditBox editBox;
+    private ConfigEditorHandle editorHandle;
     private Button resetButton;
-    private boolean syncingEditor;
 
     ConfigEntryWidget(ConfigSectionScreen screen, ConfigSchemaNode schema) {
         this.screen = screen;
         this.session = screen.session();
+        this.schema = schema;
         if (schema.isSection()) {
             this.sectionEntry = true;
             this.section = schema;
@@ -53,6 +50,7 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
             editor = Button.builder(sectionLabel(), button -> openSection())
                     .bounds(0, 0, 80, 18)
                     .build();
+            setDescriptionTooltip(editor);
             childWidgets.add(editor);
         } else {
             this.sectionEntry = false;
@@ -63,110 +61,58 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
     }
 
     private void createEditor() {
-        if (value instanceof BooleanConfigValue) {
-            editor = Button.builder(Component.literal(""), button -> toggleBoolean())
-                    .bounds(0, 0, 80, 18)
-                    .build();
-        } else if (value instanceof EnumConfigValue<?> enumValue) {
-            editor = buildCycleButton(enumValue);
-        } else {
-            editBox = new EditBox(screen.fontInstance(), 0, 0, 80, 18, Component.literal(""));
-            editBox.setMaxLength(Integer.MAX_VALUE);
-            editBox.setResponder(text -> {
-                if (syncingEditor) {
-                    return;
-                }
-                Object candidate = ConfigText.parseText(value, text);
-                session.setValue(value, candidate);
-                screen.markChanged();
-            });
-            editor = editBox;
+        editorHandle = ConfigEditorRegistry.create(new ConfigEditorContext(screen, schema));
+        editor = editorHandle.primaryWidget();
+        for (AbstractWidget widget : editorHandle.widgets()) {
+            setDescriptionTooltip(widget);
+            childWidgets.add(widget);
         }
-        setDescriptionTooltip(editor);
-        childWidgets.add(editor);
         resetButton = Button.builder(Component.translatable("syrup_library.config.reset"), button -> resetValue())
                 .bounds(0, 0, 44, 16)
                 .build();
         setDescriptionTooltip(resetButton);
         childWidgets.add(resetButton);
-        syncEditorFromSession();
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private CycleButton buildCycleButton(EnumConfigValue<?> enumValue) {
-        List constants = List.of(enumValue.enumType().getEnumConstants());
-        Object initial = enumValue.enumType().cast(session.value(value));
-        java.util.function.Function<Object, Component> label = constant -> Component.literal(
-                ConfigText.displayName(((Enum<?>) constant).name().toLowerCase(Locale.ROOT)));
-        CycleButton.Builder builder;
-        //? if >=1.21.11 {
-        /*builder = (CycleButton.Builder) CycleButton.builder(label, initial);
-         *///?} else {
-        builder = (CycleButton.Builder) CycleButton.builder(label).withInitialValue(initial);
-        //?}
-        return builder.withValues(constants)
-                .displayOnlyValue()
-                .create(0, 0, 80, 18, Component.literal(""), (button, constant) -> {
-                    session.setValue(value, constant);
-                    screen.markChanged();
-                });
-    }
-
-    private void toggleBoolean() {
-        boolean current = (Boolean) session.value(value);
-        session.setValue(value, !current);
         refresh();
-        screen.markChanged();
     }
 
     private void resetValue() {
         session.reset(value);
         refresh();
-        screen.markChanged();
+        screen.markChanged(value);
     }
 
     private void setDescriptionTooltip(AbstractWidget widget) {
-        List<String> description = value.description();
-        if (description.isEmpty()) {
-            return;
-        }
-        Component text = Component.literal(String.join("\n", description));
-        widget.setTooltip(Tooltip.create(text));
+        Component text = ConfigText.description(schema, schema.spec());
+        if (!text.getString().isEmpty()) widget.setTooltip(Tooltip.create(text));
     }
 
-    /** Pushes the current session values into the widgets without creating drafts. */
-    void refresh() {
-        syncEditorFromSession();
+    /** Pushes the current session values and active state into the widgets. */
+    @Override void refresh() {
+        if (editorHandle != null) editorHandle.refresh();
+        updateActiveState();
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private void syncEditorFromSession() {
-        if (sectionEntry) {
-            return;
-        }
-        syncingEditor = true;
-        try {
-            if (editBox != null) {
-                editBox.setValue(ConfigText.toText(session.value(value)));
-            } else if (editor instanceof CycleButton) {
-                ((CycleButton) editor).setValue(session.value(value));
-            } else {
-                editor.setMessage(Component.literal(String.valueOf(session.value(value))));
-            }
-        } finally {
-            syncingEditor = false;
-        }
+    void updateActiveState() {
+        if (sectionEntry) return;
+        boolean editable = schema.presentation().editPolicy() == ConfigEditPolicy.EDITABLE
+                && session.matches(schema.presentation().enabledCondition());
+        editorHandle.setActive(editable);
+        if (resetButton != null) resetButton.active = editable;
     }
+
+    @Override boolean isEditable() {
+        return !sectionEntry
+                && schema.presentation().editPolicy() == ConfigEditPolicy.EDITABLE
+                && session.matches(schema.presentation().enabledCondition());
+    }
+
+    @Override ConfigValue<?> value() { return value; }
 
     @Override
-    public List<? extends GuiEventListener> children() {
-        return childWidgets;
-    }
+    public List<? extends GuiEventListener> children() { return childWidgets; }
 
     @Override
-    public List<? extends NarratableEntry> narratables() {
-        return childWidgets;
-    }
+    public List<? extends NarratableEntry> narratables() { return childWidgets; }
 
     private void openSection() {
         screen.openScreen(ConfigSectionScreen.withSession(screen, session, section));
@@ -208,18 +154,14 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
         }
         int editorWidth = Math.min(150, Math.max(80, (rowRight - rowLeft) / 3));
         int resetRight = rowRight - 4;
-        if (resetButton != null) {
-            int resetX = resetRight - 48;
-            int resetY = rowTop + (rowHeight - 16) / 2;
-            resetButton.setX(resetX);
-            resetButton.setY(resetY);
-            editorWidth = Math.min(140, editorWidth);
-        }
-        int editorX = resetRight - 48 - 6 - editorWidth;
+        int resetX = resetRight - 48;
+        int resetY = rowTop + (rowHeight - 16) / 2;
+        resetButton.setX(resetX);
+        resetButton.setY(resetY);
+        editorWidth = Math.min(140, editorWidth);
+        int editorX = resetX - 6 - editorWidth;
         int editorY = rowTop + (rowHeight - 18) / 2;
-        editor.setX(editorX);
-        editor.setY(editorY);
-        editor.setWidth(editorWidth);
+        editorHandle.setBounds(editorX, editorY, editorWidth, 18);
     }
 
     //? if >=26 {
@@ -229,18 +171,27 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
             editor.extractRenderState(graphics, mouseX, mouseY, partialTick);
             return;
         }
-        drawText(graphics, fittedName(rowLeft),
-                rowLeft + 8, rowTop + 2, COLOR_NAME);
+        drawText(graphics, fittedName(rowLeft), rowLeft + 8, rowTop + 2, COLOR_NAME);
+        drawSecondaryText(graphics, rowLeft, rowTop);
+        for (AbstractWidget widget : editorHandle.widgets()) {
+            widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        }
+        resetButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private void drawSecondaryText(GuiGraphicsExtractor graphics, int rowLeft, int rowTop) {
         String error = session.errorFor(value);
         if (error != null) {
             drawText(graphics, fittedText(error, rowLeft), rowLeft + 8, rowTop + 18, COLOR_ERROR);
+        } else if (schema.presentation().editPolicy() == ConfigEditPolicy.READ_ONLY) {
+            drawText(graphics, fittedText(Component.translatable("syrup_library.config.read_only").getString(), rowLeft),
+                    rowLeft + 8, rowTop + 18, COLOR_READ_ONLY);
+        } else if (!session.matches(schema.presentation().enabledCondition())) {
+            drawText(graphics, fittedText(Component.translatable("syrup_library.config.disabled").getString(), rowLeft),
+                    rowLeft + 8, rowTop + 18, COLOR_READ_ONLY);
         } else if (value.restartRequirement() == RestartRequirement.REQUIRED) {
             drawText(graphics, fittedText(Component.translatable("syrup_library.config.restart_required").getString(), rowLeft),
                     rowLeft + 8, rowTop + 18, COLOR_RESTART);
-        }
-        editor.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        if (resetButton != null) {
-            resetButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
         }
     }
      *///?} else {
@@ -250,40 +201,43 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
             editor.render(graphics, mouseX, mouseY, partialTick);
             return;
         }
-        drawText(graphics, fittedName(rowLeft),
-                rowLeft + 8, rowTop + 2, COLOR_NAME);
+        drawText(graphics, fittedName(rowLeft), rowLeft + 8, rowTop + 2, COLOR_NAME);
+        drawSecondaryText(graphics, rowLeft, rowTop);
+        for (AbstractWidget widget : editorHandle.widgets()) {
+            widget.render(graphics, mouseX, mouseY, partialTick);
+        }
+        resetButton.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private void drawSecondaryText(GuiGraphics graphics, int rowLeft, int rowTop) {
         String error = session.errorFor(value);
         if (error != null) {
             drawText(graphics, fittedText(error, rowLeft), rowLeft + 8, rowTop + 18, COLOR_ERROR);
+        } else if (schema.presentation().editPolicy() == ConfigEditPolicy.READ_ONLY) {
+            drawText(graphics, fittedText(Component.translatable("syrup_library.config.read_only").getString(), rowLeft),
+                    rowLeft + 8, rowTop + 18, COLOR_READ_ONLY);
+        } else if (!session.matches(schema.presentation().enabledCondition())) {
+            drawText(graphics, fittedText(Component.translatable("syrup_library.config.disabled").getString(), rowLeft),
+                    rowLeft + 8, rowTop + 18, COLOR_READ_ONLY);
         } else if (value.restartRequirement() == RestartRequirement.REQUIRED) {
             drawText(graphics, fittedText(Component.translatable("syrup_library.config.restart_required").getString(), rowLeft),
                     rowLeft + 8, rowTop + 18, COLOR_RESTART);
         }
-        editor.render(graphics, mouseX, mouseY, partialTick);
-        if (resetButton != null) {
-            resetButton.render(graphics, mouseX, mouseY, partialTick);
-        }
     }
     //?}
 
-    private Component sectionLabel() {
-        return ConfigText.sectionName(section);
-    }
+    private Component sectionLabel() { return ConfigText.sectionName(section); }
 
     private Component fittedName(int rowLeft) {
-        return fittedText(ConfigText.valueName(value).getString(), rowLeft);
+        return fittedText(ConfigText.valueName(schema).getString(), rowLeft);
     }
 
     private Component fittedText(String text, int rowLeft) {
         int maximumWidth = Math.max(20, editor.getX() - 16 - rowLeft);
-        if (screen.fontInstance().width(text) <= maximumWidth) {
-            return Component.literal(text);
-        }
+        if (screen.fontInstance().width(text) <= maximumWidth) return Component.literal(text);
         String suffix = "...";
         int end = text.length();
-        while (end > 0 && screen.fontInstance().width(text.substring(0, end) + suffix) > maximumWidth) {
-            end--;
-        }
+        while (end > 0 && screen.fontInstance().width(text.substring(0, end) + suffix) > maximumWidth) end--;
         return Component.literal(text.substring(0, end) + suffix);
     }
 
@@ -296,5 +250,4 @@ final class ConfigEntryWidget extends ContainerObjectSelectionList.Entry<ConfigE
         graphics.drawString(screen.fontInstance(), text, x, y, color);
     }
     //?}
-
 }

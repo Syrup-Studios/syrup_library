@@ -93,4 +93,7 @@ public abstract sealed class ConfigValue<T>
     protected final ConfigSpec spec() {
         return spec;
     }
+
+    /** Returns the config spec that owns this value. */
+    public final ConfigSpec specReference() { return spec; }
 }

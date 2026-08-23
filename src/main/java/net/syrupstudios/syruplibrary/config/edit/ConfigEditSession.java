@@ -2,6 +2,7 @@ package net.syrupstudios.syruplibrary.config.edit;
 
 import net.syrupstudios.syruplibrary.config.RegisteredConfig;
 import net.syrupstudios.syruplibrary.config.ConfigSnapshot;
+import net.syrupstudios.syruplibrary.config.ConfigCondition;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigIssueSeverity;
 import net.syrupstudios.syruplibrary.config.value.BooleanConfigValue;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
@@ -18,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Collection;
 
 /**
  * Client-neutral edit session over one registered config.
@@ -78,6 +80,16 @@ public final class ConfigEditSession {
         return configuredSnapshot.get(value);
     }
 
+    /** Returns whether a presentation condition matches the current draft values. */
+    public boolean matches(ConfigCondition condition) {
+        return condition.test(this::untypedValue);
+    }
+
+    private Object untypedValue(ConfigValue<?> value) {
+        Object draft = drafts.get(value);
+        return draft != null ? draft : configuredSnapshot.get(value);
+    }
+
     /** Validates and stores a candidate. Returns whether it was accepted. */
     public boolean setValue(ConfigValue<?> value, Object candidate) {
         if (!belongs(value)) {
@@ -109,6 +121,14 @@ public final class ConfigEditSession {
     public void resetAll() {
         for (ConfigValue<?> value : config.spec().values()) {
             reset(value);
+        }
+    }
+
+    /** Resets only the supplied values, for screen-aware reset actions. */
+    public void resetValues(Collection<? extends ConfigValue<?>> values) {
+        Objects.requireNonNull(values, "values");
+        for (ConfigValue<?> value : values) {
+            if (belongs(value)) reset(value);
         }
     }
 
@@ -159,9 +179,21 @@ public final class ConfigEditSession {
                 return stringValue.validationMessage();
             }
         }
-        if (value instanceof StringListConfigValue) {
+        if (value instanceof StringListConfigValue listValue) {
             if (!(candidate instanceof List<?> list)) return "Expected a JSON5 array of strings";
-            return list.stream().allMatch(String.class::isInstance) ? null : "List may contain only strings";
+            if (!list.stream().allMatch(String.class::isInstance)) return "List may contain only strings";
+            @SuppressWarnings("unchecked") List<String> strings = (List<String>) list;
+            if (strings.size() < listValue.minimumSize() || strings.size() > listValue.maximumSize()) {
+                return "List size must be between " + listValue.minimumSize() + " and " + listValue.maximumSize();
+            }
+            for (String item : strings) {
+                try {
+                    if (!listValue.isItemValid(item)) return listValue.itemValidationMessage();
+                } catch (RuntimeException exception) {
+                    return listValue.itemValidationMessage();
+                }
+            }
+            return null;
         }
         if (value instanceof EnumConfigValue<?> enumValue) {
             return candidate != null && enumValue.enumType().isInstance(candidate) ? null : "Unknown enum value";

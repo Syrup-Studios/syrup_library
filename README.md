@@ -80,6 +80,163 @@ Minecraft client classes.
 
 The editor changes the local JSON5 file. It does not send configuration changes to a remote server.
 
+## Config presentation API
+
+The existing value methods remain supported. Mods can use the fluent entry API when they need
+localized text, specialized controls, conditions, groups, scope metadata, or other screen behavior.
+
+```java
+ConfigSpec spec = ConfigSpec.builder("example_client")
+        .translationPrefix("example_mod.config.client")
+        .header("Example Mod client configuration")
+        .build();
+
+ConfigGroup general = spec.group("general");
+ConfigGroup advancedGroup = spec.group("advanced");
+
+BooleanConfigValue advanced = spec.booleanEntry("advanced", false)
+        .description("Shows advanced settings.")
+        .group(general)
+        .build();
+
+IntConfigValue volume = spec.intEntry("volume", 80)
+        .range(0, 100)
+        .description("Master volume from 0 to 100.")
+        .group(general)
+        .editor(ConfigEditor.slider(1))
+        .build();
+
+StringConfigValue backend = spec.stringEntry("backend", "automatic")
+        .description("The rendering backend.")
+        .group(advancedGroup)
+        .visibleWhen(ConfigCondition.isTrue(advanced))
+        .build();
+
+spec.info("advanced_warning")
+        .text("These settings can reduce performance.")
+        .style(ConfigInfoStyle.WARNING)
+        .group(advancedGroup)
+        .visibleWhen(ConfigCondition.isTrue(advanced))
+        .build();
+```
+
+Groups and information rows control only the screen. They do not create JSON5 fields or change
+config paths.
+
+### Localized config text
+
+When a spec has a translation prefix, the editor checks these keys:
+
+```text
+<prefix>.title
+<prefix>.<path>.name
+<prefix>.<path>.description
+<prefix>.group.<group-id>.name
+<prefix>.group.<group-id>.description
+<prefix>.info.<info-id>.text
+<prefix>.<enum-path>.option.<serialized-value>
+```
+
+Example:
+
+```json
+{
+  "example_mod.config.client.title": "Client Settings",
+  "example_mod.config.client.volume.name": "Master Volume",
+  "example_mod.config.client.volume.description": "Controls all mod sounds.",
+  "example_mod.config.client.group.advanced.name": "Advanced"
+}
+```
+
+Missing translations use the current readable-name and literal-description fallbacks. The literal
+description still becomes a JSON5 comment. Changing the game language does not change the file.
+
+### Built-in editors
+
+Use `editor(...)` on a fluent entry builder:
+
+```java
+spec.doubleEntry("scale", 1.0)
+        .range(0.5, 2.0)
+        .editor(ConfigEditor.slider(0.1))
+        .build();
+
+spec.stringEntry("accent", "#55AAFF")
+        .editor(ConfigEditor.color())
+        .build();
+
+spec.stringEntry("notes", "")
+        .editor(ConfigEditor.multiline(6))
+        .build();
+
+spec.stringEntry("data_file", "example.json")
+        .editor(ConfigEditor.path(ConfigPathMode.FILE, Set.of("json")))
+        .build();
+```
+
+String lists automatically use a dedicated editor with add, edit, remove, and reorder actions.
+List builders can also set size and item-validation rules.
+
+The path editor stays inside the loader config directory and stores relative paths. The first
+version does not accept absolute paths.
+
+### Conditions
+
+Conditions use typed value references and read the current edit-session drafts:
+
+```java
+.visibleWhen(ConfigCondition.equals(mode, Mode.ADVANCED))
+.enabledWhen(ConfigCondition.modLoaded("optional_mod"))
+```
+
+Available composition methods include `oneOf`, `allOf`, `anyOf`, and `not`. Registration rejects
+cross-spec references, self-dependencies, and condition cycles.
+
+### Scope and edit policy
+
+Values default to `ConfigScope.COMMON` and `ConfigEditPolicy.EDITABLE`.
+
+```java
+.scope(ConfigScope.CLIENT)
+.scope(ConfigScope.SERVER)
+.editPolicy(ConfigEditPolicy.READ_ONLY)
+.editPolicy(ConfigEditPolicy.HIDDEN)
+```
+
+Server-scoped values are read-only in the local client editor by default. Scope metadata does not
+provide network synchronization or remote server editing.
+
+### Enum presentation
+
+Enum serialization remains the lowercase constant name. A builder can change only the screen order,
+labels, and offered choices:
+
+```java
+spec.enumEntry("quality", Quality.class, Quality.NORMAL)
+        .optionOrder(Quality.LOW, Quality.NORMAL, Quality.HIGH)
+        .optionLabel(Quality.HIGH, "example_mod.config.client.quality.option.high")
+        .enabledOptions(value -> value != Quality.HIGH || highQualitySupported())
+        .build();
+```
+
+### Custom client editors
+
+Register custom editors during client setup:
+
+```java
+ConfigEditorRegistry.register(
+        "example_mod:special",
+        context -> new SpecialConfigEditor(context)
+);
+```
+
+Declare the editor with `ConfigEditor.custom("example_mod:special")`. The registry freezes before
+the first config screen opens. A missing editor logs a warning and uses the automatic editor. Custom
+editors must send changes through the supplied `ConfigEditorContext`.
+
+The full behavior and compatibility requirements are in
+[`docs/CONFIG_EDITOR_DESIGN.md`](docs/CONFIG_EDITOR_DESIGN.md).
+
 ## Remote publishing
 
 This part is more for me, since i know i will forget
