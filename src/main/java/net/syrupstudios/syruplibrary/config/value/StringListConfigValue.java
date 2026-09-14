@@ -9,7 +9,7 @@ import java.util.List;
 public final class StringListConfigValue extends ConfigValue<List<String>> {
     public StringListConfigValue(ConfigSpec spec, String key, String path, List<String> defaultValue,
                                  List<String> description, RestartRequirement restartRequirement) {
-        super(spec, key, path, List.class, List.copyOf(defaultValue), description, restartRequirement);
+        super(spec, key, path, List.class, defaultValue, description, restartRequirement);
     }
 
     @Override

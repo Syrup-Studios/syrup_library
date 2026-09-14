@@ -24,9 +24,9 @@ final class DefaultJson5Writer {
     private DefaultJson5Writer() {
     }
 
-    static boolean createIfMissing(ConfigSpec spec, Path path) throws IOException {
+    static void createIfMissing(ConfigSpec spec, Path path) throws IOException {
         if (Files.exists(path)) {
-            return false;
+            return;
         }
         Path parent = path.getParent();
         Files.createDirectories(parent);
@@ -38,22 +38,20 @@ final class DefaultJson5Writer {
             } catch (AtomicMoveNotSupportedException exception) {
                 Files.move(temporary, path);
             }
-            return true;
         } catch (FileAlreadyExistsException exception) {
-            return false;
+            // Another writer created the config file.
         } finally {
             Files.deleteIfExists(temporary);
         }
     }
 
-    static boolean fillMissing(ConfigSpec spec, Path path, Json5Object existing) throws IOException {
+    static void fillMissing(ConfigSpec spec, Path path, Json5Object existing) throws IOException {
         Json5Object defaults = JSON5.parse(render(spec)).getAsJson5Object();
         if (!mergeMissing(existing, defaults)) {
-            return false;
+            return;
         }
 
         writeAtomically(path, JSON5.serialize(existing));
-        return true;
     }
 
     private static boolean mergeMissing(Json5Object existing, Json5Object defaults) {

@@ -1,7 +1,7 @@
 package net.syrupstudios.syruplibrary.loaders.neoforge;
 
 //? if neoforge {
-import net.neoforged.api.distmarker.Dist;
+/*import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
@@ -9,7 +9,7 @@ import net.syrupstudios.syruplibrary.loaders.Platform;
 
 import java.nio.file.Path;
 
-/** NeoForge implementation of shared loader services. */
+/^* NeoForge implementation of shared loader services. ^/
 public final class NeoForgePlatformImpl implements Platform {
     @Override
     public boolean isModLoaded(String modId) {
@@ -19,16 +19,16 @@ public final class NeoForgePlatformImpl implements Platform {
     @Override
     public boolean isClientSide() {
         //? if >=1.21.11 {
-        /*return FMLEnvironment.getDist() == Dist.CLIENT;
-        *///?} else
+        /^return FMLEnvironment.getDist() == Dist.CLIENT;
+        ^///?} else
         return FMLEnvironment.dist == Dist.CLIENT;
     }
 
     @Override
     public boolean isServerSide() {
         //? if >=1.21.11 {
-        /*return FMLEnvironment.getDist() == Dist.DEDICATED_SERVER;
-        *///?} else
+        /^return FMLEnvironment.getDist() == Dist.DEDICATED_SERVER;
+        ^///?} else
         return FMLEnvironment.dist == Dist.DEDICATED_SERVER;
     }
 
@@ -42,4 +42,4 @@ public final class NeoForgePlatformImpl implements Platform {
         return "neoforge";
     }
 }
-//?}
+*///?}
