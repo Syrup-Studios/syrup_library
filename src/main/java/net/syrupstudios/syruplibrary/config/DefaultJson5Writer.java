@@ -46,12 +46,29 @@ final class DefaultJson5Writer {
     }
 
     static void fillMissing(ConfigSpec spec, Path path, Json5Object existing) throws IOException {
+        if (!hasMissing(existing, spec.root())) {
+            return;
+        }
         Json5Object defaults = JSON5.parse(render(spec)).getAsJson5Object();
         if (!mergeMissing(existing, defaults)) {
             return;
         }
 
         writeAtomically(path, JSON5.serialize(existing));
+    }
+
+    private static boolean hasMissing(Json5Object existing, SchemaNode schema) {
+        for (SchemaNode child : schema.children.values()) {
+            if (!existing.has(child.key)) {
+                return true;
+            }
+            Json5Object section = child.value == null && existing.get(child.key).isJson5Object()
+                    ? existing.getAsJson5Object(child.key) : null;
+            if (section != null && hasMissing(section, child)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean mergeMissing(Json5Object existing, Json5Object defaults) {

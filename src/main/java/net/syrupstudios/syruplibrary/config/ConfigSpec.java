@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 /** Root declaration and runtime state for one typed configuration file. */
@@ -21,14 +20,14 @@ public final class ConfigSpec extends ConfigContainer {
     private final SchemaNode root = new SchemaNode("", "", List.of());
     private final List<ConfigValue<?>> values = new ArrayList<>();
     private final AtomicBoolean registered = new AtomicBoolean();
-    private final AtomicReference<ConfigState> state;
+    private volatile ConfigState state;
     private volatile boolean sealed;
 
     private ConfigSpec(String id, List<String> header) {
         this.id = validateId(id);
         this.header = List.copyOf(header);
         ConfigSnapshot empty = new ConfigSnapshot(Map.of());
-        this.state = new AtomicReference<>(new ConfigState(empty, empty, empty));
+        this.state = new ConfigState(empty, empty, empty);
     }
 
     /** Starts a spec declaration for a validated config ID. */
@@ -72,7 +71,7 @@ public final class ConfigSpec extends ConfigContainer {
         child.value = value;
         parent.children.put(key, child);
         values.add(value);
-        publishDefaults();
+        state = null;
         return value;
     }
 
@@ -80,7 +79,19 @@ public final class ConfigSpec extends ConfigContainer {
         return parent.path.isEmpty() ? key : parent.path + "." + key;
     }
 
-    ConfigState currentState() { return state.get(); }
+    ConfigState currentState() {
+        ConfigState current = state;
+        if (current == null) {
+            synchronized (this) {
+                current = state;
+                if (current == null) {
+                    publishDefaults();
+                    current = state;
+                }
+            }
+        }
+        return current;
+    }
 
     /** Returns a typed value from the current effective snapshot. */
     public <T> T effectiveValue(ConfigValue<T> value) {
@@ -97,14 +108,14 @@ public final class ConfigSpec extends ConfigContainer {
         return currentState().startup().get(value);
     }
 
-    void publish(ConfigState newState) { state.set(newState); }
+    void publish(ConfigState newState) { state = newState; }
 
-    void sealForRegistration() {
+    synchronized void sealForRegistration() {
         if (!registered.compareAndSet(false, true)) {
             throw new IllegalStateException("Config spec is already registered: " + id);
         }
         sealed = true;
-        publishDefaults();
+        currentState();
     }
 
     SchemaNode root() { return root; }
@@ -115,7 +126,7 @@ public final class ConfigSpec extends ConfigContainer {
             defaults.put(value, value.defaultValue());
         }
         ConfigSnapshot snapshot = new ConfigSnapshot(defaults);
-        state.set(new ConfigState(snapshot, snapshot, snapshot));
+        state = new ConfigState(snapshot, snapshot, snapshot);
     }
 
     private void ensureMutable() {

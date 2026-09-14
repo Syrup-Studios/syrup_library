@@ -29,7 +29,6 @@ dependencies {
 
     val modConfiguration = if (remappedMinecraft) "modImplementation" else "implementation"
     add(modConfiguration, "net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-    add(modConfiguration, "net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
 }
 
 loomExtension.apply {

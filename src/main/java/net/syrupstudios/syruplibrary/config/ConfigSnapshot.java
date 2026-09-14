@@ -14,10 +14,11 @@ public final class ConfigSnapshot {
 
     /** Returns a value from this exact snapshot. */
     public <T> T get(ConfigValue<T> value) {
-        if (!values.containsKey(value)) {
+        Object stored = values.get(value);
+        if (stored == null) {
             throw new IllegalArgumentException("Value does not belong to this snapshot: " + value.path());
         }
-        return value.cast(values.get(value));
+        return value.cast(stored);
     }
 
     Map<ConfigValue<?>, Object> values() {

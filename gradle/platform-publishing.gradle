@@ -32,14 +32,12 @@ publishMods {
         minecraftVersions.add(minecraftVersion)
         client = true
         server = true
-        if (loader == "fabric") requires("fabric-api")
     }
 
     modrinth {
         projectId = providers.gradleProperty("publish.modrinth_project_id")
         accessToken = modrinthToken
         minecraftVersions.add(minecraftVersion)
-        if (loader == "fabric") requires("fabric-api")
     }
 }
 

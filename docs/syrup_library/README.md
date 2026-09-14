@@ -43,7 +43,6 @@ Also add Syrup Library to the `depends` object in `fabric.mod.json`:
     "fabricloader": ">=0.19.2",
     "minecraft": "1.20.1",
     "java": ">=17",
-    "fabric-api": "*",
     "syrup_library": ">=0.1.1"
   }
 }
