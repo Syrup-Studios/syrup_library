@@ -15,6 +15,9 @@
   "entrypoints": {
     "main": [
       "net.syrupstudios.syruplibrary.loaders.fabric.FabricSyrupLibrary"
+    ],
+    "modmenu": [
+      "net.syrupstudios.syruplibrary.loaders.fabric.client.FabricModMenuIntegration"
     ]
   },
   "depends": {

@@ -344,4 +344,67 @@ RegisteredConfig clientConfig = SyrupConfigManager.getInstance().register(client
 RegisteredConfig serverConfig = SyrupConfigManager.getInstance().register(serverSpec);
 ```
 
-This code creates `example_mod_client.json5` and `example_mod_server.json5`. The files are in the config directory of the active loader.
+This code creates `example_mod_client.json5` and `example_mod_server.json5`. The
+files are in the config directory of the active loader.
+
+## GUI integration
+
+The optional client screen edits every registered value with the same typed
+validation and save API. Open a config from another client screen with:
+
+```java
+import net.minecraft.client.Minecraft;
+import net.syrupstudios.syruplibrary.client.config.SyrupConfigScreen;
+
+Minecraft.getInstance().setScreen(SyrupConfigScreen.create(parent, "example_mod"));
+```
+
+On Minecraft 26.2, use `Minecraft.getInstance().setScreenAndShow(...)` for
+the returned screen.
+
+`create(parent)` opens a selection screen for every registered config.
+`create(parent, "example_mod")` opens one config by ID and returns `null` when
+the ID is not registered. The public constructor accepts a `RegisteredConfig`
+when a caller already holds that handle.
+
+The screen keeps edits local until `updateAndSaveAll` succeeds. Save keeps the
+editor open and displays `Saved` plus any restart status. Done returns to the
+parent after a successful save. Cancel discards edits since the last successful
+save. Save errors and validation errors remain on the screen.
+Restart-required values show their normal configured/effective behavior after
+save: the configured value changes, while the effective value waits for restart.
+
+Use Previous setting and Next setting to move through settings. Select
+Description and limits to read the full field path, description, and limits.
+Select the status button to read validation, save, and restart messages.
+Booleans and enums use native controls. Numeric
+and string values use text fields, with multiline text in the native multiline
+editor. String lists provide item add and remove controls.
+
+Fabric builds publish an optional Mod Menu entrypoint. In Mod Menu, open the
+Syrup Library entry and choose a registered config. Add Mod Menu as a
+client-only dependency in the consuming development environment if you want
+that button. Syrup Library does not package Mod Menu, and it continues to
+load normally when Mod Menu is absent.
+
+Forge and NeoForge expose the screen through the Syrup Library entry in their
+client Mods config button. A mod can also call `SyrupConfigScreen.create` from
+its client config extension. Do not call client classes from a dedicated-server
+entrypoint.
+
+Supported targets are Fabric 1.20.1, 1.21.1, 1.21.11, and 26.2; Forge
+1.20.1; and NeoForge 1.21.1, 1.21.11, and 26.2. Fabric's optional ModMenu
+development versions are 7.2.2, 11.0.3, 17.0.0, and 20.0.1 for those Fabric
+targets. ModMenu is compile-only and is never bundled.
+
+## Manual GUI verification
+
+For each supported loader target, open the config button and verify that:
+
+- Every registered value is reachable, including values beyond the first page.
+- Previous and Next reach every setting; resize preserves unsaved edits.
+- Boolean, enum, numeric, string, multiline, and list controls work with keyboard input.
+- Save shows validation errors and save failures; a failed save leaves the active values and file unchanged.
+- Successful Save shows Saved and restart status; Done returns to the parent.
+- Cancel discards edits since the last successful save.
+- Removing the optional integration dependency still loads and uses the config API.
