@@ -3,21 +3,24 @@ package net.syrupstudios.syruplibrary.client.config;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.syrupstudios.syruplibrary.config.RegisteredConfig;
-import net.syrupstudios.syruplibrary.config.SyrupConfigManager;
 
 import java.util.Comparator;
+import java.util.Collection;
 import java.util.List;
 
-/** Paged selection of all configs registered with the shared manager. */
+/** Paged selection of the supplied registered configs. */
 final class SyrupConfigSelectionScreen extends ConfigScreen {
     private int page;
 
-    SyrupConfigSelectionScreen(Screen parent) {
-        super(parent, Component.literal("Syrup Library configs"));
+    private final Collection<RegisteredConfig> configs;
+
+    SyrupConfigSelectionScreen(Screen parent, Collection<RegisteredConfig> configs, String title) {
+        super(parent, Component.literal(title));
+        this.configs = List.copyOf(configs);
     }
 
     @Override protected void init() {
-        List<RegisteredConfig> configs = SyrupConfigManager.getInstance().registeredConfigs().values().stream()
+        List<RegisteredConfig> configs = this.configs.stream()
                 .sorted(Comparator.comparing(config -> config.spec().id())).toList();
         int rows = Math.max(1, (height - 110) / 24);
         int pages = Math.max(1, (configs.size() + rows - 1) / rows);

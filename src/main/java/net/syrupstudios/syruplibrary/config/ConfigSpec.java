@@ -16,6 +16,7 @@ public final class ConfigSpec extends ConfigContainer {
     private static final Pattern KEY_PATTERN = Pattern.compile("[a-z][a-z0-9_]*");
 
     private final String id;
+    private final String ownerId;
     private final List<String> header;
     private final SchemaNode root = new SchemaNode("", "", List.of());
     private final List<ConfigValue<?>> values = new ArrayList<>();
@@ -23,8 +24,9 @@ public final class ConfigSpec extends ConfigContainer {
     private volatile ConfigState state;
     private volatile boolean sealed;
 
-    private ConfigSpec(String id, List<String> header) {
+    private ConfigSpec(String id, String ownerId, List<String> header) {
         this.id = validateId(id);
+        this.ownerId = validateId(ownerId);
         this.header = List.copyOf(header);
         ConfigSnapshot empty = new ConfigSnapshot(Map.of());
         this.state = new ConfigState(empty, empty, empty);
@@ -37,6 +39,9 @@ public final class ConfigSpec extends ConfigContainer {
 
     /** Returns the file/config ID. */
     public String id() { return id; }
+
+    /** Returns the mod ID that owns this configuration. */
+    public String ownerId() { return ownerId; }
 
     /** Returns immutable file header lines. */
     public List<String> header() { return header; }
@@ -161,10 +166,18 @@ public final class ConfigSpec extends ConfigContainer {
     /** Builder for immutable spec identity and header metadata. */
     public static final class Builder {
         private final String id;
+        private String ownerId;
         private final List<String> header = new ArrayList<>();
 
         private Builder(String id) {
             this.id = validateId(id);
+            this.ownerId = this.id;
+        }
+
+        /** Sets the owning mod ID used by loader config integrations. */
+        public Builder owner(String ownerId) {
+            this.ownerId = validateId(ownerId);
+            return this;
         }
 
         /** Replaces the generated file header with the supplied lines. */
@@ -180,7 +193,7 @@ public final class ConfigSpec extends ConfigContainer {
 
         /** Builds an unregistered spec; values and sections may be declared until registration. */
         public ConfigSpec build() {
-            return new ConfigSpec(id, header);
+            return new ConfigSpec(id, ownerId, header);
         }
     }
 }

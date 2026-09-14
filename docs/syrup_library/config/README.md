@@ -337,8 +337,10 @@ The library uses each default as a safe replacement value. It does not return `n
 Create and register a different `ConfigSpec` for each file. Give each specification a unique config ID:
 
 ```java
-ConfigSpec clientSpec = ConfigSpec.builder("example_mod_client").build();
-ConfigSpec serverSpec = ConfigSpec.builder("example_mod_server").build();
+ConfigSpec clientSpec = ConfigSpec.builder("example_mod_client")
+        .owner("example_mod").build();
+ConfigSpec serverSpec = ConfigSpec.builder("example_mod_server")
+        .owner("example_mod").build();
 
 RegisteredConfig clientConfig = SyrupConfigManager.getInstance().register(clientSpec);
 RegisteredConfig serverConfig = SyrupConfigManager.getInstance().register(serverSpec);
@@ -381,16 +383,22 @@ Booleans and enums use native controls. Numeric
 and string values use text fields, with multiline text in the native multiline
 editor. String lists provide item add and remove controls.
 
-Fabric builds publish an optional Mod Menu entrypoint. In Mod Menu, open the
-Syrup Library entry and choose a registered config. Add Mod Menu as a
-client-only dependency in the consuming development environment if you want
-that button. Syrup Library does not package Mod Menu, and it continues to
-load normally when Mod Menu is absent.
+Syrup Library registers isolated config factories for the owning mod on Fabric,
+Forge, and NeoForge. A consuming mod does not need to add a second bridge. The
+default owner is the config ID, so a spec named `example_mod` appears under
+that mod. For a different filename, set the owner explicitly:
 
-Forge and NeoForge expose the screen through the Syrup Library entry in their
-client Mods config button. A mod can also call `SyrupConfigScreen.create` from
-its client config extension. Do not call client classes from a dedicated-server
-entrypoint.
+```java
+ConfigSpec.builder("example_mod_client")
+        .owner("example_mod").build();
+```
+
+Register every config spec before loader setup completes. A mod with multiple
+specs receives one config button; `SyrupConfigScreen.createForMod(parent,
+"example_mod")` opens the only config directly or shows a selector containing
+only that mod's configs. The existing `create(parent)` selector remains
+available for a deliberate library-wide diagnostic screen. Do not call client
+classes from a dedicated-server entrypoint.
 
 Supported targets are Fabric 1.20.1, 1.21.1, 1.21.11, and 26.2; Forge
 1.20.1; and NeoForge 1.21.1, 1.21.11, and 26.2. Fabric's optional ModMenu

@@ -42,7 +42,17 @@ public final class SyrupConfigScreen extends ConfigScreen {
 
     /** Creates a selector for all configs, including an empty-state screen. */
     public static Screen create(Screen parent) {
-        return new SyrupConfigSelectionScreen(parent);
+        return new SyrupConfigSelectionScreen(parent,
+                SyrupConfigManager.getInstance().registeredConfigs().values(), "Syrup Library configs");
+    }
+
+    /** Creates the owning mod's editor, or a filtered selector; returns null when it has no configs. */
+    public static Screen createForMod(Screen parent, String modId) {
+        List<RegisteredConfig> configs = SyrupConfigManager.getInstance().registeredConfigs().values().stream()
+                .filter(config -> config.spec().ownerId().equals(modId)).toList();
+        if (configs.isEmpty()) return null;
+        if (configs.size() == 1) return new SyrupConfigScreen(parent, configs.get(0));
+        return new SyrupConfigSelectionScreen(parent, configs, modId + " configs");
     }
 
     /** Creates an editor for a registered ID, or returns null if it is absent. */
