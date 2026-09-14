@@ -28,9 +28,61 @@ import java.util.Map;
 import java.util.Objects;
 
 final class ConfigLoader {
+    static final Object INVALID_UPDATE = new Object();
     private static final Json5 JSON5 = new Json5();
 
     private ConfigLoader() {
+    }
+
+    static Object validateUpdate(ConfigValue<?> value, Object candidate, List<ConfigIssue> issues) {
+        if (candidate == null || !value.declaredType().isInstance(candidate)) {
+            issues.add(new ConfigIssue(value.path(), ConfigIssueSeverity.ERROR,
+                    "Expected " + value.declaredType().getSimpleName(), candidate, null));
+            return INVALID_UPDATE;
+        }
+        if (value instanceof StringListConfigValue) {
+            for (Object item : (List<?>) candidate) if (!(item instanceof String)) {
+                issues.add(new ConfigIssue(value.path(), ConfigIssueSeverity.ERROR,
+                        "Expected a list containing only strings", candidate, null));
+                return INVALID_UPDATE;
+            }
+        }
+        List<ConfigIssue> parsedIssues = new ArrayList<>();
+        Object parsed;
+        try {
+            Json5Object wrapper = JSON5.parse("{value: " + DefaultJson5Writer.renderValue(candidate) + "}").getAsJson5Object();
+            parsed = parse(value, wrapper.get("value"), parsedIssues);
+        } catch (RuntimeException exception) {
+            issues.add(new ConfigIssue(value.path(), ConfigIssueSeverity.ERROR,
+                    "Invalid update: " + usefulMessage(exception), candidate, null));
+            return INVALID_UPDATE;
+        }
+        if (!parsedIssues.isEmpty()) {
+            for (ConfigIssue issue : parsedIssues) {
+                String message = issue.message().replace("; using the schema default", "")
+                        .replace(" and was clamped", "");
+                issues.add(new ConfigIssue(issue.path(), ConfigIssueSeverity.ERROR,
+                        "Invalid update: " + message + "; update rejected; previous value remains configured",
+                        issue.originalValue(), issue.effectiveValue()));
+            }
+            return INVALID_UPDATE;
+        }
+        return parsed;
+    }
+
+    static ConfigState stateFor(ConfigSpec spec, ConfigSnapshot configured, List<ConfigIssue> issues) {
+        ConfigState previous = spec.currentState();
+        Map<ConfigValue<?>, Object> effective = new LinkedHashMap<>();
+        for (ConfigValue<?> value : spec.values()) {
+            Object next = configured.values().get(value);
+            Object running = previous.startup().values().get(value);
+            effective.put(value, value.restartRequirement() == RestartRequirement.REQUIRED ? running : next);
+            if (value.restartRequirement() == RestartRequirement.REQUIRED && !Objects.equals(next, running)) {
+                issues.add(new ConfigIssue(value.path(), ConfigIssueSeverity.INFORMATION,
+                        "Configured value requires a restart; the startup value remains effective", next, running));
+            }
+        }
+        return new ConfigState(configured, new ConfigSnapshot(effective), previous.startup());
     }
 
     static ConfigLoadResult load(RegisteredConfig registered, boolean initial) {
@@ -56,35 +108,11 @@ final class ConfigLoader {
             DefaultJson5Writer.fillMissing(spec, registered.path(), root);
 
             ConfigSnapshot configured = new ConfigSnapshot(configuredValues);
-            ConfigSnapshot startup;
-            ConfigSnapshot effective;
             if (initial) {
-                startup = configured;
-                effective = configured;
+                spec.publish(new ConfigState(configured, configured, configured));
             } else {
-                startup = spec.currentState().startup();
-                Map<ConfigValue<?>, Object> effectiveValues = new LinkedHashMap<>();
-                for (ConfigValue<?> value : spec.values()) {
-                    Object parsed = configuredValues.get(value);
-                    if (value.restartRequirement() == RestartRequirement.REQUIRED) {
-                        Object running = startup.values().get(value);
-                        effectiveValues.put(value, running);
-                        if (!Objects.equals(parsed, running)) {
-                            issues.add(new ConfigIssue(
-                                    value.path(),
-                                    ConfigIssueSeverity.INFORMATION,
-                                    "Configured value requires a restart; the startup value remains effective",
-                                    parsed,
-                                    running
-                            ));
-                        }
-                    } else {
-                        effectiveValues.put(value, parsed);
-                    }
-                }
-                effective = new ConfigSnapshot(effectiveValues);
+                spec.publish(stateFor(spec, configured, issues));
             }
-            spec.publish(new ConfigState(configured, effective, startup));
             return new ConfigLoadResult(true, issues, null);
         } catch (Exception exception) {
             issues.add(new ConfigIssue(

@@ -253,9 +253,30 @@ ConfigLoadResult firstLoad = ModConfig.FILE.initialResult();
 
 A successful load result can contain warnings. Use `hasWarnings()` if your command must report changed or rejected values.
 
+## Update and save values
+
+Use a value handle to validate and update one value. Use `updateAll()` when several values must change together. The whole batch stays unchanged when one value is invalid.
+
+```java
+import java.util.Map;
+import net.syrupstudios.syruplibrary.config.diagnostic.ConfigUpdateResult;
+
+ConfigUpdateResult update = ModConfig.FILE.updateAndSave(ModConfig.SEARCH_RADIUS, 32);
+if (update.successful()) {
+    // The new value is active and saved.
+}
+
+ConfigUpdateResult batch = ModConfig.FILE.updateAll(Map.of(
+        ModConfig.ENABLED, false,
+        ModConfig.SEARCH_RADIUS, 8
+));
+```
+
+Updates use the declared type, range, string validation, enum values, and string-list member checks. `update()` and `updateAll()` change memory only; use `updateAndSave()` or `updateAndSaveAll()` to save before publishing. A failed save leaves both the previous file and the active state unchanged. `save()` saves already-published configured values. Saves regenerate the schema output, including schema comments; custom file comments and unknown keys are removed. If the file system does not support atomic replacement, the save fails safely and leaves the previous file intact.
+
 ## Restart-only values
 
-By default, values use `RestartRequirement.NONE`. A reload makes these values active immediately.
+By default, values use `RestartRequirement.NONE`. An update or reload makes these values active immediately.
 
 Use `RestartRequirement.REQUIRED` for a value that must stay unchanged until the next game start:
 
@@ -271,10 +292,10 @@ public static final StringConfigValue STORAGE_MODE = ADVANCED.stringValue(
 For a value that requires a restart:
 
 - `get()` returns the value that is active now.
-- `configuredValue()` returns the most recent valid value from the file.
+- `configuredValue()` returns the most recent valid configured value, including unsaved programmatic updates.
 - `startupValue()` returns the value that was loaded at game start.
 
-After a reload, `get()` and `startupValue()` stay unchanged. The configured value becomes active after a restart.
+After a reload or programmatic update, `get()` and `startupValue()` stay unchanged. The configured value becomes active after a restart.
 
 ## Available value types
 

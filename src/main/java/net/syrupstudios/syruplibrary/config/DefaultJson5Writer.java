@@ -17,6 +17,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 final class DefaultJson5Writer {
     private static final Json5 JSON5 = new Json5();
@@ -87,45 +88,58 @@ final class DefaultJson5Writer {
         return changed;
     }
 
-    private static void writeAtomically(Path path, String contents) throws IOException {
+    static void writeAtomically(Path path, String contents) throws IOException {
         Path parent = path.getParent();
         Path temporary = Files.createTempFile(parent, "." + path.getFileName() + "-", ".tmp");
+        boolean moved = false;
         try {
             Files.writeString(temporary, contents, StandardCharsets.UTF_8);
             try {
                 Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                moved = true;
             } catch (AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
+                throw new IOException("Atomic file replacement is not supported", exception);
             }
         } finally {
-            Files.deleteIfExists(temporary);
+            try {
+                Files.deleteIfExists(temporary);
+            } catch (IOException cleanupFailure) {
+                if (!moved) throw cleanupFailure;
+            }
         }
     }
 
     static String render(ConfigSpec spec) {
+        Map<ConfigValue<?>, Object> values = new java.util.LinkedHashMap<>();
+        for (ConfigValue<?> value : spec.values()) values.put(value, value.defaultValue());
+        return render(spec, values);
+    }
+
+    static String render(ConfigSpec spec, Map<ConfigValue<?>, Object> values) {
         StringBuilder output = new StringBuilder();
         if (!spec.header().isEmpty()) {
             blockComment(output, 0, spec.header());
         }
         output.append("{\n");
-        renderChildren(output, spec.root(), 1);
+        renderChildren(output, spec.root(), 1, values);
         output.append("}\n");
         return output.toString();
     }
 
-    private static void renderChildren(StringBuilder output, SchemaNode parent, int depth) {
+    private static void renderChildren(StringBuilder output, SchemaNode parent, int depth,
+                                       Map<ConfigValue<?>, Object> values) {
         Iterator<SchemaNode> iterator = parent.children.values().iterator();
         while (iterator.hasNext()) {
             SchemaNode child = iterator.next();
             if (child.value == null) {
                 sectionComment(output, depth, child.description);
                 indent(output, depth).append(child.key).append(": {\n");
-                renderChildren(output, child, depth + 1);
+                renderChildren(output, child, depth + 1, values);
                 indent(output, depth).append('}');
             } else {
                 valueComment(output, depth, child.value);
                 indent(output, depth).append(child.key).append(": ")
-                        .append(renderValue(child.value.defaultValue()));
+                        .append(renderValue(values.get(child.value)));
             }
             if (iterator.hasNext()) {
                 output.append(',');
@@ -177,7 +191,7 @@ final class DefaultJson5Writer {
         return value.replace("*/", "* /");
     }
 
-    private static String renderValue(Object value) {
+    static String renderValue(Object value) {
         if (value instanceof String string) {
             return quote(string);
         }
