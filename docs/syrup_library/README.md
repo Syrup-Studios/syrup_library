@@ -19,6 +19,10 @@ The config system can:
 
 The same config code works with all supported mod loaders.
 
+## Teleport documentation
+
+Use the [teleport guide](teleport/README.md) to capture locations and teleport players.
+
 ## Add Syrup Library
 
 For Fabric and Minecraft 1.20.1, use version `0.1.1+1.20.1-fabric`.
