@@ -20,6 +20,10 @@ base.archivesName = property("mod.id") as String
 
 val loomExtension = extensions.getByType<LoomGradleExtensionAPI>()
 
+repositories {
+    maven("https://maven.terraformersmc.com/releases/") { name = "TerraformersMC" }
+}
+
 dependencies {
     add("minecraft", "com.mojang:minecraft:$minecraftVersion")
     if (remappedMinecraft) add("mappings", loomExtension.officialMojangMappings())
@@ -29,7 +33,14 @@ dependencies {
 
     val modConfiguration = if (remappedMinecraft) "modImplementation" else "implementation"
     add(modConfiguration, "net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-    add(modConfiguration, "net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
+    val modMenu = "com.terraformersmc:modmenu:${property("deps.mod_menu")}"
+    if (remappedMinecraft) {
+        add("modCompileOnly", modMenu)
+        add("modLocalRuntime", modMenu)
+    } else {
+        add("compileOnly", modMenu)
+        add("localRuntime", modMenu)
+    }
 }
 
 loomExtension.apply {

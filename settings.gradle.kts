@@ -33,6 +33,8 @@ stonecutter {
         target("1.21.11", "neoforge")
         target("26.2", "fabric")
         target("26.2", "neoforge")
+        target("26.3", "fabric")
+        target("26.3", "neoforge")
 
         vcsVersion = "1.20.1-fabric"
     }

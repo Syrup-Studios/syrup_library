@@ -7,7 +7,7 @@ package net.syrupstudios.syruplibrary.config.diagnostic;
  * @param severity severity of the issue
  * @param message operator-facing explanation
  * @param originalValue rejected or adjusted value, when applicable
- * @param effectiveValue fallback, clamped, or currently effective value, when applicable
+ * @param effectiveValue schema default or retained configured/startup value, when applicable
  */
 public record ConfigIssue(
         String path,

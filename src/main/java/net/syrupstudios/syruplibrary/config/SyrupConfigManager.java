@@ -23,7 +23,7 @@ public final class SyrupConfigManager {
         return Holder.INSTANCE;
     }
 
-    /** Creates an isolated manager rooted at a supplied directory, primarily for tools and tests. */
+    /** Creates an isolated manager rooted at a supplied directory. */
     public static SyrupConfigManager create(Path configDirectory) {
         return new SyrupConfigManager(configDirectory);
     }
