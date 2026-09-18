@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Immutable definition of one setting. Runtime values belong to its registered config. */
-public sealed class ConfigValue<T> permits BooleanConfigValue, IntConfigValue, LongConfigValue,
-        DoubleConfigValue, StringConfigValue, StringListConfigValue, EnumConfigValue {
+public final class ConfigValue<T> {
     private final ConfigSpec spec;
     private final String key;
     private final String path;
@@ -36,7 +35,7 @@ public sealed class ConfigValue<T> permits BooleanConfigValue, IntConfigValue, L
     public final Class<?> declaredType() { return type.javaType(); }
     public final ConfigType<T> type() { return type; }
     public final List<ConfigConstraint<T>> constraints() { return constraints; }
-    public final T defaultValue() { return copy(defaultValue); }
+    public final T defaultValue() { return type.normalize(defaultValue); }
     public final List<String> description() { return description; }
     public final RestartRequirement restartRequirement() { return restartRequirement; }
     public final T get() { return spec.effectiveValue(this); }
@@ -55,6 +54,4 @@ public sealed class ConfigValue<T> permits BooleanConfigValue, IntConfigValue, L
 
     /** Copies an already validated snapshot value. Does not re-run constraints. */
     public final T cast(Object value) { return type.normalize(value); }
-    protected T copy(T value) { return type.normalize(value); }
-    protected final ConfigSpec spec() { return spec; }
 }

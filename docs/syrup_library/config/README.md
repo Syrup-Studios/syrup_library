@@ -7,6 +7,9 @@ description: Learn how to create, register, read, validate, and reload a JSON5 c
 
 This guide explains how to use the Syrup Library config system. First, [add Syrup Library to your mod](../README.md#add-syrup-library).
 
+This guide documents the 0.3.0 generic config API. The typed wrapper API was
+removed in 0.3.0. Existing consumers must stay on 0.2.0 or migrate and rebuild.
+
 A config specification defines the sections, values, defaults, and limits in one config file. This guide uses the term **specification** for this definition.
 
 ## Create a config specification
@@ -276,11 +279,13 @@ By default, values use `RestartRequirement.NONE`. An update or reload makes thes
 Use `RestartRequirement.REQUIRED` for a value that must stay unchanged until the next game start:
 
 ```java
-public static final StringConfigValue STORAGE_MODE = ADVANCED.stringValue(
+public static final ConfigValue<String> STORAGE_MODE = ADVANCED.value(
         "storage_mode",
+        ConfigType.STRING,
         "safe",
         "Storage system that the mod uses.",
-        RestartRequirement.REQUIRED
+        RestartRequirement.REQUIRED,
+        List.of()
 );
 ```
 
@@ -294,8 +299,8 @@ After a reload or programmatic update, `get()` and `startupValue()` stay unchang
 
 ## Available value types
 
-The library also provides generic convenience factories. These factories use
-the same schema and validation rules as the typed methods:
+The library provides generic convenience factories. These factories use the
+same schema and validation rules as the full `value(...)` factory:
 
 ```java
 ConfigValue<Boolean> enabled = gameplay.bool("enabled", true, "Enable the feature.");
@@ -307,19 +312,7 @@ ConfigValue<LogLevel> level = advanced.enumValue(
         "log_level", LogLevel.NORMAL, "Control log output.");
 ```
 
-The generic methods are convenience forms. Existing typed methods remain
-available and return deprecated thin wrappers, so existing source and binary users can
-move to the generic model over time.
-
-For compatibility, the older typed handles are still valid:
-
-```java
-@Deprecated
-public static final IntConfigValue OLD_RADIUS = GAMEPLAY.intValue(
-        "old_radius", 16, 1, 128, "Legacy radius.");
-```
-
-Use the full generic factory when a generic value needs restart metadata or
+Use the full generic factory when a value needs restart metadata or
 custom constraints. A custom `ConfigType<T>` supplies a JSON5 decoder, encoder,
 and normalizer. The normalizer must return an independent value for mutable
 types. Syrup calls it for defaults, decoded values, updates, and snapshots.
@@ -328,16 +321,14 @@ You can add values to a `ConfigSpec` or to a `ConfigSection`.
 
 | Method | Java type | Notes |
 | --- | --- | --- |
-| `booleanValue` | `Boolean` | Accepts `true` or `false`. |
-| `intValue` | `Integer` | Requires an inclusive minimum and maximum. |
-| `longValue` | `Long` | Requires an inclusive minimum and maximum. |
-| `doubleValue` | `Double` | Requires a default, minimum, and maximum. These numbers cannot be infinity or `NaN`. |
-| `stringValue` | `String` | Accepts any string. |
-| `validatedStringValue` | `String` | Uses your validation function and message. |
-| `stringListValue` | `List<String>` | Returns a list that you cannot change. |
+| `bool` | `Boolean` | Accepts `true` or `false`. |
+| `integer` | `Integer` | Requires an inclusive minimum and maximum. |
+| `longValue` | `Long` | Accepts a long value. |
+| `doubleValue` | `Double` | Accepts a finite double value. |
+| `string` | `String` | Accepts any string. |
+| `stringList` | `List<String>` | Returns an immutable list. |
 | `enumValue` | Your enum type | Stores enum names as lowercase strings. It accepts uppercase and lowercase input. |
-
-The original typed factories accept a `RestartRequirement`. The generic `value(...)` factory accepts restart metadata and a list of constraints.
+| `value` | Any declared type | Accepts restart metadata and constraints. |
 
 A default number must be in its specified range. If the default is not valid, the library throws an exception when it creates the specification.
 
