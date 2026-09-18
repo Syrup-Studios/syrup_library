@@ -44,6 +44,7 @@ dependencies {
 }
 
 loomExtension.apply {
+    enableTransitiveAccessWideners.set(false)
     fabricModJsonPath.set(rootProject.file("src/main/resources/fabric.mod.json"))
     if (remappedMinecraft) {
         decompilerOptions.named("vineflower") {
