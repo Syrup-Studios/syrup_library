@@ -2,29 +2,21 @@ package net.syrupstudios.syruplibrary.config.value;
 
 import net.syrupstudios.syruplibrary.config.ConfigSpec;
 import net.syrupstudios.syruplibrary.config.RestartRequirement;
-
 import java.util.List;
 
-/** Typed bounded double configuration value. */
+/** @deprecated Use the generic ConfigValue declaration methods. */
+@Deprecated
 public final class DoubleConfigValue extends ConfigValue<Double> {
-    private final double minimum;
-    private final double maximum;
-
     public DoubleConfigValue(ConfigSpec spec, String key, String path, double defaultValue,
-                             double minimum, double maximum, List<String> description,
-                             RestartRequirement restartRequirement) {
-        super(spec, key, path, Double.class, defaultValue, description, restartRequirement);
-        if (!Double.isFinite(defaultValue) || !Double.isFinite(minimum) || !Double.isFinite(maximum)
-                || minimum > maximum || defaultValue < minimum || defaultValue > maximum) {
-            throw new IllegalArgumentException("Invalid range/default for " + path);
-        }
-        this.minimum = minimum;
-        this.maximum = maximum;
+                            double minimum, double maximum, List<String> description,
+                            RestartRequirement restartRequirement) {
+        super(spec, key, path, ConfigType.DOUBLE, defaultValue, description, restartRequirement,
+                List.of(ConfigConstraint.range(minimum, maximum)));
     }
 
-    /** Inclusive minimum. */
-    public double minimum() { return minimum; }
-
-    /** Inclusive maximum. */
-    public double maximum() { return maximum; }
+    public double minimum() { return range().minimum(); }
+    public double maximum() { return range().maximum(); }
+    private ConfigConstraint.Range<Double> range() {
+        return (ConfigConstraint.Range<Double>) constraints().get(0);
+    }
 }

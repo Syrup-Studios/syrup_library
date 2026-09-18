@@ -23,11 +23,8 @@ import net.syrupstudios.syruplibrary.config.ConfigSpec;
 import net.syrupstudios.syruplibrary.config.RegisteredConfig;
 import net.syrupstudios.syruplibrary.config.RestartRequirement;
 import net.syrupstudios.syruplibrary.config.SyrupConfigManager;
-import net.syrupstudios.syruplibrary.config.value.BooleanConfigValue;
-import net.syrupstudios.syruplibrary.config.value.EnumConfigValue;
-import net.syrupstudios.syruplibrary.config.value.IntConfigValue;
-import net.syrupstudios.syruplibrary.config.value.StringConfigValue;
-import net.syrupstudios.syruplibrary.config.value.StringListConfigValue;
+import net.syrupstudios.syruplibrary.config.value.ConfigType;
+import net.syrupstudios.syruplibrary.config.value.ConfigValue;
 
 import java.util.List;
 
@@ -50,13 +47,13 @@ public final class ModConfig {
             "Settings that change gameplay."
     );
 
-    public static final BooleanConfigValue ENABLED = GAMEPLAY.booleanValue(
+    public static final ConfigValue<Boolean> ENABLED = GAMEPLAY.bool(
             "enabled",
             true,
             "Enable the main feature."
     );
 
-    public static final IntConfigValue SEARCH_RADIUS = GAMEPLAY.intValue(
+    public static final ConfigValue<Integer> SEARCH_RADIUS = GAMEPLAY.integer(
             "search_radius",
             16,
             1,
@@ -64,15 +61,13 @@ public final class ModConfig {
             "Maximum search radius in blocks."
     );
 
-    public static final StringConfigValue CHANNEL = GAMEPLAY.validatedStringValue(
+    public static final ConfigValue<String> CHANNEL = GAMEPLAY.string(
             "channel",
             "global",
-            "Channel name used by the feature.",
-            value -> value.matches("[a-z0-9_]+"),
-            "Use lowercase letters, numbers, and underscores"
+            "Channel name used by the feature."
     );
 
-    public static final StringListConfigValue BLOCKED_WORLDS = GAMEPLAY.stringListValue(
+    public static final ConfigValue<List<String>> BLOCKED_WORLDS = GAMEPLAY.stringList(
             "blocked_worlds",
             List.of("minecraft:the_end"),
             "Dimension IDs where the feature is disabled."
@@ -83,18 +78,18 @@ public final class ModConfig {
             "Settings for server administrators."
     );
 
-    public static final EnumConfigValue<LogLevel> LOG_LEVEL = ADVANCED.enumValue(
-            "log_level",
-            LogLevel.class,
-            LogLevel.NORMAL,
+    public static final ConfigValue<LogLevel> LOG_LEVEL = ADVANCED.enumValue(
+            "log_level", LogLevel.NORMAL,
             "Control how much information the mod writes to the log."
     );
 
-    public static final StringConfigValue STORAGE_MODE = ADVANCED.stringValue(
+    public static final ConfigValue<String> STORAGE_MODE = ADVANCED.value(
             "storage_mode",
+            ConfigType.STRING,
             "safe",
             "Storage system that the mod uses.",
-            RestartRequirement.REQUIRED
+            RestartRequirement.REQUIRED,
+            List.of()
     );
 
     public static final RegisteredConfig FILE =
@@ -299,6 +294,36 @@ After a reload or programmatic update, `get()` and `startupValue()` stay unchang
 
 ## Available value types
 
+The library also provides generic convenience factories. These factories use
+the same schema and validation rules as the typed methods:
+
+```java
+ConfigValue<Boolean> enabled = gameplay.bool("enabled", true, "Enable the feature.");
+ConfigValue<Integer> radius = gameplay.integer("radius", 16, 1, 128, "Search radius.");
+ConfigValue<String> mode = gameplay.string("mode", "safe", "Storage mode.");
+ConfigValue<List<String>> blocked = gameplay.stringList(
+        "blocked_worlds", List.of(), "Dimensions where the feature is disabled.");
+ConfigValue<LogLevel> level = advanced.enumValue(
+        "log_level", LogLevel.NORMAL, "Control log output.");
+```
+
+The generic methods are convenience forms. Existing typed methods remain
+available and return deprecated thin wrappers, so existing source and binary users can
+move to the generic model over time.
+
+For compatibility, the older typed handles are still valid:
+
+```java
+@Deprecated
+public static final IntConfigValue OLD_RADIUS = GAMEPLAY.intValue(
+        "old_radius", 16, 1, 128, "Legacy radius.");
+```
+
+Use the full generic factory when a generic value needs restart metadata or
+custom constraints. A custom `ConfigType<T>` supplies a JSON5 decoder, encoder,
+and normalizer. The normalizer must return an independent value for mutable
+types. Syrup calls it for defaults, decoded values, updates, and snapshots.
+
 You can add values to a `ConfigSpec` or to a `ConfigSection`.
 
 | Method | Java type | Notes |
@@ -312,7 +337,7 @@ You can add values to a `ConfigSpec` or to a `ConfigSection`.
 | `stringListValue` | `List<String>` | Returns a list that you cannot change. |
 | `enumValue` | Your enum type | Stores enum names as lowercase strings. It accepts uppercase and lowercase input. |
 
-For each value method, you can also specify a `RestartRequirement`.
+The original typed factories accept a `RestartRequirement`. The generic `value(...)` factory accepts restart metadata and a list of constraints.
 
 A default number must be in its specified range. If the default is not valid, the library throws an exception when it creates the specification.
 
@@ -323,14 +348,18 @@ Syrup Library treats a value error differently from a file error.
 | Input problem | Result |
 | --- | --- |
 | A value is missing | The library uses the default. It adds the missing value to the file. |
-| A number is outside its range | The library changes the number to the nearest limit. It also adds a warning. |
-| A value has the wrong type | The library uses the default. It also adds a warning. |
-| A string does not pass its validation function | The library uses the default. It also adds a warning. |
-| An enum name is not known | The library uses the default. It also adds a warning. |
+| A present number is outside its range | The candidate is rejected. The previous configured and active values stay unchanged. It adds an error. |
+| A present value has the wrong type | The candidate is rejected. The previous configured and active values stay unchanged. It adds an error. |
+| A present string does not pass its validation function | The candidate is rejected. The previous configured and active values stay unchanged. It adds an error. |
+| A present enum name is not known | The candidate is rejected. The previous configured and active values stay unchanged. It adds an error. |
 | A key is not in the specification | The library ignores the key. It also adds an information message. |
 | The JSON5 file does not load | The reload fails. The last valid values stay active. |
 
-The library uses each default as a safe replacement value. It does not return `null` for a declared value.
+On initial load, a present invalid value leaves the declared default active. On a
+later reload, a present invalid value leaves the previous valid configured value
+active. Missing values still use the declared default and are added to the
+file. A candidate is never partly applied: if one value is invalid, the whole
+candidate is rejected. The library does not return `null` for a declared value.
 
 ## Use more than one config file
 
@@ -404,15 +433,3 @@ Supported targets are Fabric 1.20.1, 1.21.1, 1.21.11, and 26.2; Forge
 1.20.1; and NeoForge 1.21.1, 1.21.11, and 26.2. Fabric's optional ModMenu
 development versions are 7.2.2, 11.0.3, 17.0.0, and 20.0.1 for those Fabric
 targets. ModMenu is compile-only and is never bundled.
-
-## Manual GUI verification
-
-For each supported loader target, open the config button and verify that:
-
-- Every registered value is reachable, including values beyond the first page.
-- Previous and Next reach every setting; resize preserves unsaved edits.
-- Boolean, enum, numeric, string, multiline, and list controls work with keyboard input.
-- Save shows validation errors and save failures; a failed save leaves the active values and file unchanged.
-- Successful Save shows Saved and restart status; Done returns to the parent.
-- Cancel discards edits since the last successful save.
-- Removing the optional integration dependency still loads and uses the config API.

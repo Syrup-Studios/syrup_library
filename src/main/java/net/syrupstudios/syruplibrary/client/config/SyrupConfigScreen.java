@@ -12,7 +12,6 @@ import net.syrupstudios.syruplibrary.config.SyrupConfigManager;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigUpdateResult;
 import net.syrupstudios.syruplibrary.config.value.*;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +20,8 @@ import java.util.stream.Collectors;
 
 /** Client-only generated editor. Draft values stay local until a successful save. */
 public final class SyrupConfigScreen extends ConfigScreen {
+    private static final String FAILURE_MESSAGE = "Save failed. Select for details.";
+
     private final RegisteredConfig config;
     private final List<ConfigValue<?>> values;
     private final Map<ConfigValue<?>, Object> drafts = new LinkedHashMap<>();
@@ -65,9 +66,8 @@ public final class SyrupConfigScreen extends ConfigScreen {
         ConfigSnapshot snapshot = config.configuredSnapshot();
         for (ConfigValue<?> value : values) {
             Object current = snapshot.get(value);
-            Object draft = current instanceof Number ? current.toString() : current;
-            original.put(value, draft);
-            drafts.put(value, draft instanceof List<?> list ? new ArrayList<>(list) : draft);
+            original.put(value, ConfigEditorRegistry.draft(value, current));
+            drafts.put(value, ConfigEditorRegistry.draft(value, current));
         }
     }
 
@@ -83,35 +83,12 @@ public final class SyrupConfigScreen extends ConfigScreen {
         } else {
             ConfigValue<?> value = values.get(page);
             label((page + 1) + "/" + values.size() + "  " + value.path(), 54);
-            String metadata = metadata(value);
+            String metadata = ConfigEditorRegistry.metadata(value);
             button("Description and limits", left(), 72, w,
                     () -> details(value.path(), metadata));
             Object draft = drafts.get(value);
-            if (value instanceof BooleanConfigValue) {
-                button(value.path() + ": " + draft, left(), 100, w, () -> {
-                    drafts.put(value, !(Boolean) drafts.get(value));
-                    changed();
-                    rebuildWidgets();
-                });
-            } else if (value instanceof EnumConfigValue<?> enumValue) {
-                button(value.path() + ": " + ((Enum<?>) draft).name(), left(), 100, w, () -> {
-                    Enum<?>[] choices = enumValue.enumType().getEnumConstants();
-                    drafts.put(value, choices[(((Enum<?>) drafts.get(value)).ordinal() + 1) % choices.length]);
-                    changed();
-                    rebuildWidgets();
-                });
-            } else if (value instanceof StringListConfigValue) {
-                listEditor(value);
-            } else if (value instanceof StringConfigValue) {
-                textField((String) draft, value.path(), 100, Math.max(32, height - 184),
-                        text -> { drafts.put(value, text); changed(); });
-            } else {
-                EditBox field = new EditBox(font, left(), 100, w, 20, Component.literal(value.path()));
-                field.setMaxLength(Integer.MAX_VALUE);
-                field.setValue((String) draft);
-                field.setResponder(text -> { drafts.put(value, text); changed(); });
-                addRenderableWidget(field);
-            }
+            ConfigEditorRegistry.create(this, value, draft,
+                    next -> drafts.put(value, next), this::changed, this::rebuildWidgets);
             label(value.restartRequirement() == RestartRequirement.REQUIRED
                     ? "This setting requires a restart." : "This setting applies after Save.", height - 52);
         }
@@ -127,7 +104,7 @@ public final class SyrupConfigScreen extends ConfigScreen {
     }
 
     @SuppressWarnings("unchecked")
-    private void listEditor(ConfigValue<?> value) {
+    void listEditor(ConfigValue<?> value) {
         List<String> list = (List<String>) drafts.get(value);
         listIndex = Math.max(0, Math.min(listIndex, list.size() - 1));
         int selected = listIndex;
@@ -162,32 +139,18 @@ public final class SyrupConfigScreen extends ConfigScreen {
         }
     }
 
-    private String metadata(ConfigValue<?> value) {
-        String limits = "";
-        if (value instanceof IntConfigValue number) limits = "\nRange: " + number.minimum() + " to " + number.maximum();
-        if (value instanceof LongConfigValue number) limits = "\nRange: " + number.minimum() + " to " + number.maximum();
-        if (value instanceof DoubleConfigValue number) limits = "\nRange: " + number.minimum() + " to " + number.maximum();
-        if (value instanceof EnumConfigValue<?> choice) limits = "\nChoices: " + java.util.Arrays.toString(choice.enumType().getEnumConstants());
-        return value.path() + "\n" + String.join("\n", value.description()) + limits
-                + (value.restartRequirement() == RestartRequirement.REQUIRED
-                ? "\nRequires restart.\nActive value: " + value.get() + "\nConfigured value: " + value.configuredValue() : "");
-    }
-
     private void save() {
         Map<ConfigValue<?>, Object> updates = new LinkedHashMap<>();
         for (ConfigValue<?> value : values) {
             Object draft = drafts.get(value);
             if (Objects.equals(draft, original.get(value))) continue;
             try {
-                Object parsed = draft;
-                if (value instanceof IntConfigValue) parsed = Integer.valueOf(((String) draft).trim());
-                if (value instanceof LongConfigValue) parsed = Long.valueOf(((String) draft).trim());
-                if (value instanceof DoubleConfigValue) parsed = Double.valueOf(((String) draft).trim());
+                Object parsed = ConfigEditorRegistry.normalize(value, draft);
                 updates.put(value, parsed);
-            } catch (NumberFormatException exception) {
+            } catch (RuntimeException exception) {
                 page = values.indexOf(value);
-                status = "Invalid number. Select for details.";
-                statusDetails = value.path() + ": Enter a valid " + value.declaredType().getSimpleName() + ".";
+                status = "Invalid value. Select for details.";
+                statusDetails = value.path() + ": " + usefulMessage(exception);
                 rebuildWidgets();
                 return;
             }
@@ -201,10 +164,15 @@ public final class SyrupConfigScreen extends ConfigScreen {
             status = restart ? "Saved. Restart required." : "Saved.";
             statusDetails = status;
         } else {
-            status = "Save failed. Select for details.";
+            status = FAILURE_MESSAGE;
             statusDetails = result.issues().stream().map(issue -> issue.path() + ": " + issue.message())
                     .collect(Collectors.joining("\n"));
         }
         rebuildWidgets();
+    }
+
+    private static String usefulMessage(RuntimeException exception) {
+        return exception.getMessage() == null || exception.getMessage().isBlank()
+                ? "Enter a valid " + exception.getClass().getSimpleName() + "." : exception.getMessage();
     }
 }

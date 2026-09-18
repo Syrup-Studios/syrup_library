@@ -6,91 +6,55 @@ import net.syrupstudios.syruplibrary.config.RestartRequirement;
 import java.util.List;
 import java.util.Objects;
 
-/** Base type for a typed configuration value. */
-public abstract sealed class ConfigValue<T>
-        permits BooleanConfigValue, DoubleConfigValue, EnumConfigValue, IntConfigValue,
-        LongConfigValue, StringConfigValue, StringListConfigValue {
+/** Immutable definition of one setting. Runtime values belong to its registered config. */
+public sealed class ConfigValue<T> permits BooleanConfigValue, IntConfigValue, LongConfigValue,
+        DoubleConfigValue, StringConfigValue, StringListConfigValue, EnumConfigValue {
     private final ConfigSpec spec;
     private final String key;
     private final String path;
-    private final Class<?> declaredType;
+    private final ConfigType<T> type;
     private final T defaultValue;
     private final List<String> description;
     private final RestartRequirement restartRequirement;
+    private final List<ConfigConstraint<T>> constraints;
 
-    protected ConfigValue(
-            ConfigSpec spec,
-            String key,
-            String path,
-            Class<?> declaredType,
-            T defaultValue,
-            List<String> description,
-            RestartRequirement restartRequirement
-    ) {
+    public ConfigValue(ConfigSpec spec, String key, String path, ConfigType<T> type, T defaultValue,
+                       List<String> description, RestartRequirement restartRequirement,
+                       List<ConfigConstraint<T>> constraints) {
         this.spec = Objects.requireNonNull(spec, "spec");
         this.key = Objects.requireNonNull(key, "key");
         this.path = Objects.requireNonNull(path, "path");
-        this.declaredType = Objects.requireNonNull(declaredType, "declaredType");
-        this.defaultValue = copy(Objects.requireNonNull(defaultValue, "defaultValue"));
+        this.type = Objects.requireNonNull(type, "type");
         this.description = List.copyOf(description);
         this.restartRequirement = Objects.requireNonNull(restartRequirement, "restartRequirement");
+        this.constraints = List.copyOf(constraints);
+        this.defaultValue = validate(defaultValue);
     }
 
-    /** Returns the local stable key. */
-    public final String key() {
-        return key;
+    public final String key() { return key; }
+    public final String path() { return path; }
+    public final Class<?> declaredType() { return type.javaType(); }
+    public final ConfigType<T> type() { return type; }
+    public final List<ConfigConstraint<T>> constraints() { return constraints; }
+    public final T defaultValue() { return copy(defaultValue); }
+    public final List<String> description() { return description; }
+    public final RestartRequirement restartRequirement() { return restartRequirement; }
+    public final T get() { return spec.effectiveValue(this); }
+    public final T configuredValue() { return spec.configuredValue(this); }
+    public final T startupValue() { return spec.startupValue(this); }
+
+    /** Checks a Java candidate and returns an independent, normalized value. */
+    public final T validate(Object candidate) {
+        T normalized = type.normalize(candidate);
+        for (ConfigConstraint<T> constraint : constraints) {
+            String failure = constraint.validate(normalized);
+            if (failure != null) throw new IllegalArgumentException(failure);
+        }
+        return normalized;
     }
 
-    /** Returns the dot-separated path within the config. */
-    public final String path() {
-        return path;
-    }
-
-    /** Returns the declared Java type. */
-    public final Class<?> declaredType() {
-        return declaredType;
-    }
-
-    /** Returns the schema default. */
-    public final T defaultValue() {
-        return copy(defaultValue);
-    }
-
-    /** Returns immutable description lines. */
-    public final List<String> description() {
-        return description;
-    }
-
-    /** Returns restart metadata for this setting. */
-    public final RestartRequirement restartRequirement() {
-        return restartRequirement;
-    }
-
-    /** Returns the value currently effective in the running process. */
-    public final T get() {
-        return spec.effectiveValue(this);
-    }
-
-    /** Returns the latest successfully parsed value, including restart-pending edits. */
-    public final T configuredValue() {
-        return spec.configuredValue(this);
-    }
-
-    /** Returns the value captured during initial loading. */
-    public final T startupValue() {
-        return spec.startupValue(this);
-    }
-
-    @SuppressWarnings("unchecked")
-    public final T cast(Object value) {
-        return copy((T) value);
-    }
-
-    protected T copy(T value) {
-        return value;
-    }
-
-    protected final ConfigSpec spec() {
-        return spec;
-    }
+    /** Copies an already validated snapshot value. Does not re-run constraints. */
+    public final T cast(Object value) { return type.normalize(value); }
+    protected T copy(T value) { return type.normalize(value); }
+    protected final ConfigSpec spec() { return spec; }
 }

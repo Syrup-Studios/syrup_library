@@ -6,11 +6,6 @@ import net.syrupstudios.syruplibrary.config.diagnostic.ConfigLoadResult;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigSaveResult;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigUpdateResult;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
-import net.syrupstudios.syruplibrary.config.value.DoubleConfigValue;
-import net.syrupstudios.syruplibrary.config.value.IntConfigValue;
-import net.syrupstudios.syruplibrary.config.value.LongConfigValue;
-import net.syrupstudios.syruplibrary.config.value.StringConfigValue;
-import net.syrupstudios.syruplibrary.config.value.StringListConfigValue;
 import net.syrupstudios.syruplibrary.SyrupLibrary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /** Runtime handle for one registered and initially loaded configuration. */
 public final class RegisteredConfig {
@@ -29,10 +25,16 @@ public final class RegisteredConfig {
     private final ConfigSpec spec;
     private final Path path;
     private final ConfigLoadResult initialResult;
+    private volatile ConfigState state;
 
     RegisteredConfig(ConfigSpec spec, Path path) {
         this.spec = spec;
         this.path = path;
+        Map<ConfigValue<?>, Object> defaults = new LinkedHashMap<>();
+        for (ConfigValue<?> value : spec.values()) defaults.put(value, value.defaultValue());
+        ConfigSnapshot snapshot = new ConfigSnapshot(defaults);
+        this.state = new ConfigState(snapshot, snapshot, snapshot);
+        spec.bind(this);
         this.initialResult = load(true);
     }
 
@@ -67,7 +69,7 @@ public final class RegisteredConfig {
 
     private ConfigUpdateResult apply(Map<? extends ConfigValue<?>, ?> updates, boolean save) {
         List<ConfigIssue> issues = new ArrayList<>();
-        Map<ConfigValue<?>, Object> current = spec.currentState().configured().values();
+        Map<ConfigValue<?>, Object> current = state.configured().values();
         Map<ConfigValue<?>, Object> values = new LinkedHashMap<>(current);
         if (updates == null) return new ConfigUpdateResult(false,
                 List.of(error(spec.id(), "Updates must not be null", null)), null);
@@ -76,20 +78,18 @@ public final class RegisteredConfig {
             Object next = entry.getValue();
             if (value == null || !current.containsKey(value)) issues.add(error(value == null ? spec.id() : value.path(), "Value does not belong to this configuration", next));
             else {
-                int issueStart = issues.size();
-                Object normalized = ConfigLoader.validateUpdate(value, next, issues);
-                for (int index = issueStart; index < issues.size(); index++) {
-                    ConfigIssue issue = issues.get(index);
-                    issues.set(index, new ConfigIssue(issue.path(), issue.severity(), issue.message(),
-                            issue.originalValue(), current.get(value)));
+                try {
+                    values.put(value, value.validate(next));
+                } catch (RuntimeException exception) {
+                    issues.add(new ConfigIssue(value.path(), ConfigIssueSeverity.ERROR,
+                            ConfigLoader.usefulMessage(exception), next, state.configured().get(value)));
                 }
-                if (normalized != ConfigLoader.INVALID_UPDATE) values.put(value, value.cast(normalized));
             }
         }
         if (!issues.isEmpty()) return new ConfigUpdateResult(false, issues, null);
-        ConfigState nextState = ConfigLoader.stateFor(spec, new ConfigSnapshot(values), issues);
+        ConfigState nextState = stateFor(new ConfigSnapshot(values), issues);
         if (!save) {
-            spec.publish(nextState);
+            publish(nextState);
             return new ConfigUpdateResult(true, issues, null);
         }
         try {
@@ -98,8 +98,24 @@ public final class RegisteredConfig {
             issues.add(error(path.toString(), "Could not save configuration: " + exception.getMessage(), null));
             return new ConfigUpdateResult(false, issues, exception);
         }
-        spec.publish(nextState);
+        publish(nextState);
         return new ConfigUpdateResult(true, issues, null);
+    }
+
+    ConfigState stateFor(ConfigSnapshot configured, List<ConfigIssue> issues) {
+        ConfigState previous = state;
+        Map<ConfigValue<?>, Object> effective = new LinkedHashMap<>();
+        for (ConfigValue<?> value : spec.values()) {
+            Object next = configured.values().get(value);
+            Object running = previous.startup().values().get(value);
+            effective.put(value, value.restartRequirement() == RestartRequirement.REQUIRED ? running : next);
+            if (value.restartRequirement() == RestartRequirement.REQUIRED && !Objects.equals(next, running)) {
+                issues.add(new ConfigIssue(value.path(), ConfigIssueSeverity.INFORMATION,
+                        "Configured value requires a restart; the startup value remains effective",
+                        configured.get(value), previous.startup().get(value)));
+            }
+        }
+        return new ConfigState(configured, new ConfigSnapshot(effective), previous.startup());
     }
 
     /** Saves the latest configured values with an atomic file replacement. */
@@ -107,7 +123,7 @@ public final class RegisteredConfig {
         try {
             Files.createDirectories(path.getParent());
             DefaultJson5Writer.writeAtomically(path,
-                    DefaultJson5Writer.render(spec, spec.currentState().configured().values()));
+                    DefaultJson5Writer.render(spec, state.configured().values()));
             return new ConfigSaveResult(true, List.of(), null);
         } catch (Exception exception) {
             ConfigIssue issue = error(path.toString(), "Could not save configuration: " + exception.getMessage(), null);
@@ -124,14 +140,20 @@ public final class RegisteredConfig {
     /** Returns the absolute JSON5 file path. */
     public Path path() { return path; }
 
+    /** Returns one active value; use snapshot() for related reads. */
+    public <T> T get(ConfigValue<T> value) { return snapshot().get(value); }
+
+    ConfigState currentState() { return state; }
+    void publish(ConfigState next) { state = next; }
+
     /** Returns one consistent effective-value snapshot. */
-    public ConfigSnapshot snapshot() { return spec.currentState().effective(); }
+    public ConfigSnapshot snapshot() { return state.effective(); }
 
     /** Returns one consistent latest-configured snapshot. */
-    public ConfigSnapshot configuredSnapshot() { return spec.currentState().configured(); }
+    public ConfigSnapshot configuredSnapshot() { return state.configured(); }
 
     /** Returns one consistent initial startup snapshot. */
-    public ConfigSnapshot startupSnapshot() { return spec.currentState().startup(); }
+    public ConfigSnapshot startupSnapshot() { return state.startup(); }
 
     private ConfigLoadResult load(boolean initial) {
         ConfigLoadResult result = ConfigLoader.load(this, initial);

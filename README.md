@@ -1,7 +1,8 @@
 # Syrup Library
 
-Syrup Library provides reusable, typed configuration for Syrup Studios mods. Its shared source
-supports these Minecraft and loader targets:
+Shared, typed configuration code for Syrup Studios mods.
+
+Supported Minecraft and loader targets:
 
 - Minecraft 1.20.1: Fabric and Forge
 - Minecraft 1.21.1: Fabric and NeoForge
@@ -10,13 +11,13 @@ supports these Minecraft and loader targets:
 
 ## Maven coordinates
 
-Each build uses this artifact version format:
+Version format:
 
 ```text
 net.syrupstudios:syrup_library:0.2.0+<minecraft>-<loader>
 ```
 
-For example, consumers can add the Minecraft 1.20.1 Fabric build to a Fabric Loom project:
+Add the Minecraft 1.20.1 Fabric build to a Fabric Loom project:
 
 ```kotlin
 repositories {
@@ -30,10 +31,10 @@ dependencies {
 
 ## Remote publishing
 
-This part is more for me, since i know i will forget
+Publishing notes for future me.
 
-The remote repository defaults to `https://maven.syrupstudios.net/releases/`. Set its credentials
-through environment variables before running `publish`:
+The remote repository defaults to `https://maven.syrupstudios.net/releases/`. Set credentials with
+environment variables before running `publish`:
 
 ```shell
 MAVEN_REPOSITORY_USERNAME=your-username \
@@ -42,13 +43,13 @@ MAVEN_REPOSITORY_PASSWORD=your-password \
 ```
 
 The equivalent Gradle properties are `mavenRepositoryUsername` and `mavenRepositoryPassword`.
-You can override the repository with `MAVEN_REPOSITORY_URL` or `mavenRepositoryUrl`. Keep
-credentials in the user-level Gradle properties file, not in this repository.
+Override the repository with `MAVEN_REPOSITORY_URL` or `mavenRepositoryUrl`. Keep credentials in
+the user-level Gradle properties file, not this repository.
 
 ## CurseForge and Modrinth publishing
 
 Set `publish.curseforge_project_id` and `publish.modrinth_project_id` in the root
-`gradle.properties` file. Put the API tokens in `~/.gradle/gradle.properties`:
+`gradle.properties`. Put the API tokens in `~/.gradle/gradle.properties`:
 
 ```properties
 publish.curseforge_token=your-token
@@ -56,7 +57,7 @@ publish.modrinth_token=your-token
 ```
 
 You can use the `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN` environment variables instead.
-Test all upload data without sending files:
+Validate all upload data without sending files:
 
 ```shell
 ./gradlew publishMods --no-parallel -Ppublish.dry_run=true
@@ -69,5 +70,5 @@ Publish all eight builds to both sites:
 ```
 
 Use `publishCurseforge` or `publishModrinth` to publish to only one site. The release type and
-changelog come from `publish.release_type` and the root `CHANGELOGS.md` file. Create or replace
+changelog come from `publish.release_type` and the root `CHANGELOGS.md`. Create or replace
 `CHANGELOGS.md` before each release. Markdown is supported.

@@ -2,27 +2,21 @@ package net.syrupstudios.syruplibrary.config.value;
 
 import net.syrupstudios.syruplibrary.config.ConfigSpec;
 import net.syrupstudios.syruplibrary.config.RestartRequirement;
-
 import java.util.List;
 
-/** Typed bounded long configuration value. */
+/** @deprecated Use the generic ConfigValue declaration methods. */
+@Deprecated
 public final class LongConfigValue extends ConfigValue<Long> {
-    private final long minimum;
-    private final long maximum;
-
-    public LongConfigValue(ConfigSpec spec, String key, String path, long defaultValue, long minimum, long maximum,
-                           List<String> description, RestartRequirement restartRequirement) {
-        super(spec, key, path, Long.class, defaultValue, description, restartRequirement);
-        if (minimum > maximum || defaultValue < minimum || defaultValue > maximum) {
-            throw new IllegalArgumentException("Invalid range/default for " + path);
-        }
-        this.minimum = minimum;
-        this.maximum = maximum;
+    public LongConfigValue(ConfigSpec spec, String key, String path, long defaultValue,
+                            long minimum, long maximum, List<String> description,
+                            RestartRequirement restartRequirement) {
+        super(spec, key, path, ConfigType.LONG, defaultValue, description, restartRequirement,
+                List.of(ConfigConstraint.range(minimum, maximum)));
     }
 
-    /** Inclusive minimum. */
-    public long minimum() { return minimum; }
-
-    /** Inclusive maximum. */
-    public long maximum() { return maximum; }
+    public long minimum() { return range().minimum(); }
+    public long maximum() { return range().maximum(); }
+    private ConfigConstraint.Range<Long> range() {
+        return (ConfigConstraint.Range<Long>) constraints().get(0);
+    }
 }

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /** Native widgets and version-specific screen calls shared by the config screens. */
-abstract class ConfigScreen extends Screen {
+public abstract class ConfigScreen extends Screen {
     protected final Screen parent;
 
     ConfigScreen(Screen parent, Component title) {
@@ -24,22 +24,27 @@ abstract class ConfigScreen extends Screen {
         this.parent = parent;
     }
 
-    protected int contentWidth() { return Math.min(360, width - 24); }
-    protected int left() { return (width - contentWidth()) / 2; }
+    public int contentWidth() { return Math.min(360, width - 24); }
+    public int left() { return (width - contentWidth()) / 2; }
+    public net.minecraft.client.gui.Font clientFont() { return font; }
+    public int clientHeight() { return height; }
+    public <W extends net.minecraft.client.gui.components.AbstractWidget> W widget(W widget) {
+        return addRenderableWidget(widget);
+    }
 
-    protected Button button(String text, int x, int y, int width, Runnable action) {
+    public Button button(String text, int x, int y, int width, Runnable action) {
         Button button = Button.builder(Component.literal(text), ignored -> action.run())
                 .bounds(x, y, width, 20).build();
         button.setTooltip(Tooltip.create(Component.literal(text)));
         return addRenderableWidget(button);
     }
 
-    protected void label(String text, int y) {
+    public void label(String text, int y) {
         addRenderableOnly(new StringWidget(left(), y, contentWidth(), 12,
                 Component.literal(font.plainSubstrByWidth(text, contentWidth())), font));
     }
 
-    protected void textField(String text, String label, int y, int fieldHeight, Consumer<String> changed) {
+    public void textField(String text, String label, int y, int fieldHeight, Consumer<String> changed) {
         Component name = Component.literal(label);
         //? if >=1.21.11 {
         /*MultiLineEditBox field = MultiLineEditBox.builder().setX(left()).setY(y)

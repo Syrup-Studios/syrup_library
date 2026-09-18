@@ -3,14 +3,11 @@ package net.syrupstudios.syruplibrary.config;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
-/** Root declaration and runtime state for one typed configuration file. */
+/** Root schema for one typed configuration file, bound once during registration. */
 public final class ConfigSpec extends ConfigContainer {
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z][a-z0-9_-]{0,63}");
     private static final Pattern KEY_PATTERN = Pattern.compile("[a-z][a-z0-9_]*");
@@ -20,16 +17,13 @@ public final class ConfigSpec extends ConfigContainer {
     private final List<String> header;
     private final SchemaNode root = new SchemaNode("", "", List.of());
     private final List<ConfigValue<?>> values = new ArrayList<>();
-    private final AtomicBoolean registered = new AtomicBoolean();
-    private volatile ConfigState state;
+    private volatile RegisteredConfig owner;
     private volatile boolean sealed;
 
     private ConfigSpec(String id, String ownerId, List<String> header) {
         this.id = validateId(id);
         this.ownerId = validateId(ownerId);
         this.header = List.copyOf(header);
-        ConfigSnapshot empty = new ConfigSnapshot(Map.of());
-        this.state = new ConfigState(empty, empty, empty);
     }
 
     /** Starts a spec declaration for a validated config ID. */
@@ -72,11 +66,10 @@ public final class ConfigSpec extends ConfigContainer {
         if (parent.children.containsKey(key)) {
             throw new IllegalArgumentException("Duplicate config path: " + childPath(parent, key));
         }
-        SchemaNode child = new SchemaNode(key, childPath(parent, key), value.description());
+        SchemaNode child = new SchemaNode(key, childPath(parent, key), List.of());
         child.value = value;
         parent.children.put(key, child);
         values.add(value);
-        state = null;
         return value;
     }
 
@@ -84,54 +77,36 @@ public final class ConfigSpec extends ConfigContainer {
         return parent.path.isEmpty() ? key : parent.path + "." + key;
     }
 
-    ConfigState currentState() {
-        ConfigState current = state;
-        if (current == null) {
-            synchronized (this) {
-                current = state;
-                if (current == null) {
-                    publishDefaults();
-                    current = state;
-                }
-            }
-        }
-        return current;
-    }
-
     /** Returns a typed value from the current effective snapshot. */
     public <T> T effectiveValue(ConfigValue<T> value) {
-        return currentState().effective().get(value);
+        RegisteredConfig registered = owner;
+        return registered == null ? defaultFor(value) : registered.get(value);
     }
 
     /** Returns a typed value from the latest configured snapshot. */
     public <T> T configuredValue(ConfigValue<T> value) {
-        return currentState().configured().get(value);
+        RegisteredConfig registered = owner;
+        return registered == null ? defaultFor(value) : registered.configuredSnapshot().get(value);
     }
 
     /** Returns a typed value from the initial startup snapshot. */
     public <T> T startupValue(ConfigValue<T> value) {
-        return currentState().startup().get(value);
+        RegisteredConfig registered = owner;
+        return registered == null ? defaultFor(value) : registered.startupSnapshot().get(value);
     }
 
-    void publish(ConfigState newState) { state = newState; }
+    void bind(RegisteredConfig registered) { owner = registered; }
 
     synchronized void sealForRegistration() {
-        if (!registered.compareAndSet(false, true)) {
-            throw new IllegalStateException("Config spec is already registered: " + id);
-        }
+        if (sealed) throw new IllegalStateException("Config spec is already registered: " + id);
         sealed = true;
-        currentState();
     }
 
     SchemaNode root() { return root; }
 
-    private void publishDefaults() {
-        Map<ConfigValue<?>, Object> defaults = new LinkedHashMap<>();
-        for (ConfigValue<?> value : values) {
-            defaults.put(value, value.defaultValue());
-        }
-        ConfigSnapshot snapshot = new ConfigSnapshot(defaults);
-        state = new ConfigState(snapshot, snapshot, snapshot);
+    private <T> T defaultFor(ConfigValue<T> value) {
+        if (!values.contains(value)) throw new IllegalArgumentException("Value does not belong to this spec: " + value.path());
+        return value.defaultValue();
     }
 
     private void ensureMutable() {

@@ -2,12 +2,11 @@ package net.syrupstudios.syruplibrary.config;
 
 import de.marhali.json5.Json5;
 import de.marhali.json5.Json5Object;
+import de.marhali.json5.Json5Element;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
-import net.syrupstudios.syruplibrary.config.value.DoubleConfigValue;
-import net.syrupstudios.syruplibrary.config.value.IntConfigValue;
-import net.syrupstudios.syruplibrary.config.value.LongConfigValue;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
@@ -55,7 +54,7 @@ final class DefaultJson5Writer {
             return;
         }
 
-        writeAtomically(path, JSON5.serialize(existing));
+        writeAtomically(path, serialize(existing));
     }
 
     private static boolean hasMissing(Json5Object existing, SchemaNode schema) {
@@ -139,7 +138,7 @@ final class DefaultJson5Writer {
             } else {
                 valueComment(output, depth, child.value);
                 indent(output, depth).append(child.key).append(": ")
-                        .append(renderValue(values.get(child.value)));
+                        .append(renderValue(child.value, values.get(child.value)));
             }
             if (iterator.hasNext()) {
                 output.append(',');
@@ -167,14 +166,8 @@ final class DefaultJson5Writer {
         if (value.restartRequirement() == RestartRequirement.REQUIRED) {
             lines.add("Requires a server restart.");
         }
-        String metadata = "Default: " + renderValue(value.defaultValue());
-        if (value instanceof IntConfigValue integer) {
-            metadata += " | Range: " + integer.minimum() + " ~ " + integer.maximum();
-        } else if (value instanceof LongConfigValue longValue) {
-            metadata += " | Range: " + longValue.minimum() + " ~ " + longValue.maximum();
-        } else if (value instanceof DoubleConfigValue doubleValue) {
-            metadata += " | Range: " + doubleValue.minimum() + " ~ " + doubleValue.maximum();
-        }
+        String metadata = "Default: " + renderValue(value, value.defaultValue());
+        for (var constraint : value.constraints()) metadata += " | " + constraint.description();
         lines.add(metadata);
         blockComment(output, depth, lines);
     }
@@ -191,42 +184,41 @@ final class DefaultJson5Writer {
         return value.replace("*/", "* /");
     }
 
-    static String renderValue(Object value) {
-        if (value instanceof String string) {
-            return quote(string);
+    private static <T> String renderValue(ConfigValue<T> definition, Object value) {
+        try {
+            return serialize(definition.type().encode(definition.cast(value))).strip();
+        } catch (IOException exception) {
+            throw new java.io.UncheckedIOException(exception);
         }
-        if (value instanceof Enum<?> enumValue) {
-            return quote(enumValue.name().toLowerCase(java.util.Locale.ROOT));
-        }
-        if (value instanceof List<?> list) {
-            return list.stream().map(item -> quote((String) item))
-                    .collect(java.util.stream.Collectors.joining(", ", "[", "]"));
-        }
-        return String.valueOf(value);
     }
 
-    private static String quote(String value) {
-        StringBuilder escaped = new StringBuilder("\"");
-        for (int index = 0; index < value.length(); index++) {
-            char character = value.charAt(index);
-            switch (character) {
-                case '\\' -> escaped.append("\\\\");
-                case '"' -> escaped.append("\\\"");
-                case '\n' -> escaped.append("\\n");
-                case '\r' -> escaped.append("\\r");
-                case '\t' -> escaped.append("\\t");
-                case '\b' -> escaped.append("\\b");
-                case '\f' -> escaped.append("\\f");
-                default -> {
-                    if (character < 0x20) {
-                        escaped.append(String.format("\\u%04x", (int) character));
-                    } else {
-                        escaped.append(character);
-                    }
-                }
+    private static String serialize(Json5Element element) throws IOException {
+        return JSON5.serialize(plainNumbers(element));
+    }
+
+    private static Json5Element plainNumbers(Json5Element element) {
+        if (element.isJson5Primitive() && element.getAsJson5Primitive().isNumber()) {
+            try {
+                var number = de.marhali.json5.Json5Primitive.fromNumber(new PlainDecimal(element.getAsBigDecimal()));
+                if (element.hasComment()) number.setComment(element.getComment());
+                return number;
+            } catch (NumberFormatException ignored) {
+                return element; // Keep unknown NaN/infinity entries when filling missing values.
             }
         }
-        return escaped.append('"').toString();
+        if (element.isJson5Object()) {
+            for (var entry : element.getAsJson5Object().entrySet()) entry.setValue(plainNumbers(entry.getValue()));
+        } else if (element.isJson5Array()) {
+            var array = element.getAsJson5Array();
+            for (int index = 0; index < array.size(); index++) array.set(index, plainNumbers(array.get(index)));
+        }
+        return element;
+    }
+
+    /** The library writer uses Number.toString(); plain decimals avoid its exponent parser bug. */
+    private static final class PlainDecimal extends BigDecimal {
+        PlainDecimal(BigDecimal value) { super(value.unscaledValue(), value.scale()); }
+        @Override public String toString() { return toPlainString(); }
     }
 
     private static StringBuilder indent(StringBuilder output, int depth) {
