@@ -21,7 +21,7 @@ The same config code works with all supported mod loaders.
 
 ## Add Syrup Library
 
-For Fabric and Minecraft 1.20.1, use version `0.1.1+1.20.1-fabric`.
+For Fabric and Minecraft 1.20.1, these examples target version `0.3.0+1.20.1-fabric`.
 
 Add the Syrup Studios Maven repository and the dependency to your `build.gradle.kts` file:
 
@@ -31,7 +31,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation("net.syrupstudios:syrup_library:0.1.1+1.20.1-fabric")
+    modImplementation("net.syrupstudios:syrup_library:0.3.0+1.20.1-fabric")
 }
 ```
 
@@ -43,12 +43,14 @@ Also add Syrup Library to the `depends` object in `fabric.mod.json`:
     "fabricloader": ">=0.19.2",
     "minecraft": "1.20.1",
     "java": ">=17",
-    "syrup_library": ">=0.1.1"
+    "syrup_library": ">=0.3.0"
   }
 }
 ```
 
 Users must install Syrup Library with your mod. If your build includes the library, users do not need a separate copy.
+
+If you use the old typed API, stay on version `0.2.0`, or migrate and rebuild against `ConfigValue<T>`.
 
 ## Config documentation
 

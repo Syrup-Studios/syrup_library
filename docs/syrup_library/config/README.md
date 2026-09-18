@@ -420,7 +420,7 @@ only that mod's configs. The existing `create(parent)` selector remains
 available for a deliberate library-wide diagnostic screen. Do not call client
 classes from a dedicated-server entrypoint.
 
-Supported targets are Fabric 1.20.1, 1.21.1, 1.21.11, and 26.2; Forge
-1.20.1; and NeoForge 1.21.1, 1.21.11, and 26.2. Fabric's optional ModMenu
-development versions are 7.2.2, 11.0.3, 17.0.0, and 20.0.1 for those Fabric
+Supported targets are Fabric 1.20.1, 1.21.1, 1.21.11, 26.2, and 26.3; Forge
+1.20.1; and NeoForge 1.21.1, 1.21.11, 26.2, and 26.3. Fabric's optional ModMenu
+development versions are 7.2.2, 11.0.3, 17.0.0, 20.0.1, and 21.0.0-beta.1 for those Fabric
 targets. ModMenu is compile-only and is never bundled.

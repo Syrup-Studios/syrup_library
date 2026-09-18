@@ -2,19 +2,22 @@
 
 Shared, typed configuration code for Syrup Studios mods.
 
+See the [setup and config guide](docs/syrup_library/README.md) for integration details.
+
 Supported Minecraft and loader targets:
 
 - Minecraft 1.20.1: Fabric and Forge
 - Minecraft 1.21.1: Fabric and NeoForge
 - Minecraft 1.21.11: Fabric and NeoForge
 - Minecraft 26.2: Fabric and NeoForge
+- Minecraft 26.3: Fabric and NeoForge
 
 ## Maven coordinates
 
 Version format:
 
 ```text
-net.syrupstudios:syrup_library:0.2.0+<minecraft>-<loader>
+net.syrupstudios:syrup_library:0.3.0+<minecraft>-<loader>
 ```
 
 Add the Minecraft 1.20.1 Fabric build to a Fabric Loom project:
@@ -25,7 +28,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation("net.syrupstudios:syrup_library:0.2.0+1.20.1-fabric")
+    modImplementation("net.syrupstudios:syrup_library:0.3.0+1.20.1-fabric")
 }
 ```
 
@@ -63,7 +66,7 @@ Validate all upload data without sending files:
 ./gradlew publishMods --no-parallel -Ppublish.dry_run=true
 ```
 
-Publish all eight builds to both sites:
+Publish all ten builds to both sites:
 
 ```shell
 ./gradlew publishMods --no-parallel
