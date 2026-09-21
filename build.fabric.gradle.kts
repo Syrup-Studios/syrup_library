@@ -40,7 +40,7 @@ loom {
     decompilerOptions.named("vineflower") {
         options.put("mark-corresponding-synthetics", "1")
     }
-    runConfigs.configureEach { runDir = "run" }
+    runConfigs.configureEach { runDirectory = rootProject.file("run") }
 }
 
 sourceSets.main {

@@ -24,7 +24,7 @@ base.archivesName = property("mod.id") as String
 neoForge {
     version = neoForgeVersion
     runs {
-        create("client") { client(); gameDirectory = project.file("run") }
+        create("client") { client(); gameDirectory = rootProject.file("run") }
     }
     mods.create(property("mod.id") as String) { sourceSet(sourceSets.main.get()) }
 }
