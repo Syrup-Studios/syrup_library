@@ -8,34 +8,29 @@ mod:
   license: "RSL-1.0"
 
 publish:
-  curseforge_project_id: "1647641"
-  modrinth_project_id: "9tBNzmjo"
-  release_type: "beta"
+  curseforge: "1647641"
+  modrinth: "9tBNzmjo"
 
 deps.json5: "3.0.0"
+loomx.loom_version: "1.17.14"
 
 "1.20.1":
-  deps.java_version: "17"
   mod.mc_releases: ["1.20.1"]
   mod.fabric_mc_range: "1.20.1"
   mod.forge_mc_range: "[1.20.1]"
 "1.21.1":
-  deps.java_version: "21"
   mod.mc_releases: ["1.21.1"]
   mod.fabric_mc_range: "1.21.1"
   mod.neoforge_mc_range: "[1.21.1]"
 "1.21.11":
-  deps.java_version: "21"
   mod.mc_releases: ["1.21.11"]
   mod.fabric_mc_range: "1.21.11"
   mod.neoforge_mc_range: "[1.21.11]"
 "26.2":
-  deps.java_version: "25"
   mod.mc_releases: ["26.2"]
   mod.fabric_mc_range: "26.2"
   mod.neoforge_mc_range: "[26.2]"
 "26.3":
-  deps.java_version: "25"
   mod.mc_releases: ["26.3"]
   mod.fabric_mc_range: "26.3"
   mod.neoforge_mc_range: "[26.3]"

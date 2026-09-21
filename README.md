@@ -39,42 +39,35 @@ dependencies {
 
 Publishing notes for future me.
 
-The remote repository defaults to `https://maven.syrupstudios.net/releases/`. Set credentials with
-environment variables before running `publish`:
+The Maven repository is `https://maven.syrupstudios.net/releases/`. Set credentials before
+running `publish`:
 
 ```shell
-MAVEN_REPOSITORY_USERNAME=your-username \
-MAVEN_REPOSITORY_PASSWORD=your-password \
+ORG_GRADLE_PROJECT_syrupStudiosUsername=your-username \
+ORG_GRADLE_PROJECT_syrupStudiosPassword=your-password \
 ./gradlew :1.20.1-fabric:publish
 ```
 
-The equivalent Gradle properties are `mavenRepositoryUsername` and `mavenRepositoryPassword`.
-Override the repository with `MAVEN_REPOSITORY_URL` or `mavenRepositoryUrl`. Keep credentials in
-the user-level Gradle properties file, not this repository.
+The native Gradle credential names are `syrupStudiosUsername` and `syrupStudiosPassword`.
+Put them in the user-level Gradle properties file, or provide
+`ORG_GRADLE_PROJECT_syrupStudiosUsername` and `ORG_GRADLE_PROJECT_syrupStudiosPassword`.
 
 ## CurseForge and Modrinth publishing
 
-Project IDs and the default release type are in `stonecutter.properties.yaml`. Put API
-tokens in `~/.gradle/gradle.properties`:
-
-```properties
-publish.curseforge_token=your-token
-publish.modrinth_token=your-token
-```
-
-You can use the `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN` environment variables instead.
-Validate all upload data without sending files:
+Project IDs are in `stonecutter.properties.yaml`. Provide API tokens with environment variables:
 
 ```shell
-./gradlew publishMods --no-parallel -Ppublish.dry_run=true
-```
-
-Publish all ten builds to both sites:
-
-```shell
+CURSEFORGE_TOKEN=your-token \
+MODRINTH_TOKEN=your-token \
 ./gradlew publishMods --no-parallel
 ```
 
-Use `publishCurseforge` or `publishModrinth` to publish to only one site. The release type and
-changelog come from `publish.release_type` and the root `CHANGELOGS.md`. Create or replace
-`CHANGELOGS.md` before each release. Markdown is supported.
+Both tokens are required for a real upload. When either token is missing, publishing runs in
+dry-run mode automatically:
+
+```shell
+env -u CURSEFORGE_TOKEN -u MODRINTH_TOKEN ./gradlew publishMods --no-parallel
+```
+
+The release type is beta. The changelog comes from the root `CHANGELOGS.md`; the file must exist
+before a publish task runs.
