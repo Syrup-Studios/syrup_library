@@ -4,6 +4,9 @@ Shared, typed configuration code for Syrup Studios mods.
 
 See the [setup and config guide](docs/syrup_library/README.md) for integration details.
 
+Stonecutter metadata and version dependencies are defined in `stonecutter.properties.yaml`.
+`gradle.properties` only contains shared Gradle runtime settings.
+
 Supported Minecraft and loader targets:
 
 - Minecraft 1.20.1: Fabric and Forge
@@ -51,8 +54,8 @@ the user-level Gradle properties file, not this repository.
 
 ## CurseForge and Modrinth publishing
 
-Set `publish.curseforge_project_id` and `publish.modrinth_project_id` in the root
-`gradle.properties`. Put the API tokens in `~/.gradle/gradle.properties`:
+Project IDs and the default release type are in `stonecutter.properties.yaml`. Put API
+tokens in `~/.gradle/gradle.properties`:
 
 ```properties
 publish.curseforge_token=your-token
