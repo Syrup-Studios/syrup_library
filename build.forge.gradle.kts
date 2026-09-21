@@ -13,6 +13,7 @@ val requiredJava = when {
     stonecutter.current.parsed >= "26.1" -> JavaVersion.VERSION_25
     stonecutter.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
     stonecutter.current.parsed >= "1.18" -> JavaVersion.VERSION_17
+    stonecutter.current.parsed >= "1.17" -> JavaVersion.VERSION_16
     else -> JavaVersion.VERSION_1_8
 }
 val json5Dependency = "de.marhali:json5-java:" + property("deps.json5")
@@ -27,6 +28,10 @@ legacyForge {
     runs {
         create("client") {
             client()
+            gameDirectory = rootProject.file("run")
+        }
+        create("server") {
+            server()
             gameDirectory = rootProject.file("run")
         }
     }
@@ -47,19 +52,17 @@ sourceSets.main {
 
 java {
     withSourcesJar()
-    toolchain.languageVersion = JavaLanguageVersion.of(requiredJava.majorVersion)
+    toolchain {
+        vendor = JvmVendorSpec.ADOPTIUM
+        languageVersion = JavaLanguageVersion.of(requiredJava.majorVersion)
+    }
     sourceCompatibility = requiredJava
     targetCompatibility = requiredJava
 }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.encoding = "UTF-8"
-    options.release.set(requiredJava.majorVersion.toInt())
-}
-
 tasks.processResources {
     val props = mapOf(
-        "version" to project.version,
+        "version" to project.property("mod.version"),
         "mc" to forgeMinecraftRange,
         "forge" to forgeVersion.substringBefore('.'),
         "packFormat" to packFormat,
@@ -80,6 +83,8 @@ tasks.processResources {
 
 tasks.register<Copy>("buildAndCollect") {
     group = "build"
+    description = "Builds mod jars and copies results to `build/libs/{mod version}/`"
+    inputs.property("version", project.property("mod.version"))
     from(tasks.named("jar"), tasks.named("sourcesJar"))
     into(rootProject.layout.buildDirectory.file("libs/${project.property("mod.version")}"))
 }
@@ -100,9 +105,9 @@ publishing {
     }
 }
 
-val compatibleVersions = stonecutter.properties.rawOrNull("mod.mc_releases")?.asList()?.map { it.toString() } ?: listOf(mcVersion)
+val compatibleVersions = stonecutter.properties.rawOrNull("mod.mc_releases")?.asList()?.map { it.toString() }.orEmpty()
 val outputFile = tasks.named<Jar>("jar").flatMap { it.archiveFile }
-val changelogText = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOGS.md")).asText
+val changelogText = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
 val curseForgeToken = providers.environmentVariable("CURSEFORGE_TOKEN")
 val modrinthToken = providers.environmentVariable("MODRINTH_TOKEN")
 
@@ -110,9 +115,9 @@ publishMods {
     file.set(outputFile)
     dryRun = curseForgeToken.isPresent.not() || modrinthToken.isPresent.not()
     version = project.version.toString()
-    displayName = "${project.property("mod.name")} ${project.version}"
+    displayName = "${project.property("mod.name")} ${project.property("mod.version")} - Forge ${mcVersion}"
     changelog = changelogText
-    type = BETA
+    type = STABLE
     modLoaders.add(project.name.substringAfterLast('-'))
     curseforge {
         projectId = property("publish.curseforge").toString()

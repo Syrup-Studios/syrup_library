@@ -35,6 +35,13 @@ dependencies {
 }
 ```
 
+## Build and run
+
+Build all configured targets with `./gradlew build`. Collect a target's jars under
+`build/libs/0.3.0/` with `./gradlew :1.20.1-fabric:buildAndCollect`. Run the 1.20.1 Fabric
+client with `./gradlew :1.20.1-fabric:runClient`, or the Forge server with
+`./gradlew :1.20.1-forge:runServer`. Loader run configurations use the shared `run/` directory.
+
 ## Remote publishing
 
 Publishing notes for future me.
@@ -69,5 +76,5 @@ dry-run mode automatically:
 env -u CURSEFORGE_TOKEN -u MODRINTH_TOKEN ./gradlew publishMods --no-parallel
 ```
 
-The release type is beta. The changelog comes from the root `CHANGELOGS.md`; the file must exist
+The release type is stable. The changelog comes from the root `CHANGELOG.md`; the file must exist
 before a publish task runs.

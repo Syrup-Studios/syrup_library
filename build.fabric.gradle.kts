@@ -9,6 +9,7 @@ val requiredJava = when {
     stonecutter.current.parsed >= "26.1" -> JavaVersion.VERSION_25
     stonecutter.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
     stonecutter.current.parsed >= "1.18" -> JavaVersion.VERSION_17
+    stonecutter.current.parsed >= "1.17" -> JavaVersion.VERSION_16
     else -> JavaVersion.VERSION_1_8
 }
 val fabricMinecraftRange: String = stonecutter.properties["mod.fabric_mc_range"]
@@ -18,7 +19,11 @@ group = property("mod.group") as String
 base.archivesName = property("mod.id") as String
 
 repositories {
-    maven("https://maven.terraformersmc.com/releases/") { name = "TerraformersMC" }
+    fun strictMaven(url: String, alias: String, vararg groups: String) = exclusiveContent {
+        forRepository { maven(url) { name = alias } }
+        filter { groups.forEach(::includeGroup) }
+    }
+    strictMaven("https://maven.terraformersmc.com/", "Terraformers", "com.terraformersmc")
 }
 
 dependencies {
@@ -29,18 +34,27 @@ dependencies {
     add("include", json5Dependency)
 
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
+    // Runtime variant exposes Fabric API types referenced by widened Minecraft signatures.
     val modMenu = "com.terraformersmc:modmenu:${property("deps.mod_menu")}"
-    modCompileOnly(modMenu)
+    modCompileOnly(modMenu) {
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+        }
+    }
     modLocalRuntime(modMenu)
 }
 
 loom {
-    enableTransitiveAccessWideners.set(false)
     fabricModJsonPath.set(rootProject.file("src/main/resources/fabric.mod.json"))
     decompilerOptions.named("vineflower") {
         options.put("mark-corresponding-synthetics", "1")
     }
-    runConfigs.configureEach { runDirectory = rootProject.file("run") }
+    runConfigs.configureEach {
+        preferGradleTask = true
+        generateRunConfig = true
+        runDirectory = rootProject.file("run")
+        jvmArguments.add("-Dmixin.debug.export=true")
+    }
 }
 
 sourceSets.main {
@@ -62,7 +76,7 @@ java {
 
 tasks.processResources {
     val props = mapOf(
-        "version" to project.version,
+        "version" to project.property("mod.version"),
         "mc" to fabricMinecraftRange,
         "modName" to project.property("mod.name"),
         "modId" to project.property("mod.id"),
@@ -80,13 +94,10 @@ tasks.processResources {
 
 tasks.register<Copy>("buildAndCollect") {
     group = "build"
+    description = "Builds mod jars and copies results to `build/libs/{mod version}/`"
+    inputs.property("version", project.property("mod.version"))
     from(loomx.modJar.flatMap { it.archiveFile }, loomx.modSourcesJar.flatMap { it.archiveFile })
     into(rootProject.layout.buildDirectory.file("libs/${project.property("mod.version")}"))
-}
-
-tasks.withType<JavaCompile>().configureEach {
-    options.encoding = "UTF-8"
-    options.release.set(requiredJava.majorVersion.toInt())
 }
 
 publishing {
@@ -105,9 +116,9 @@ publishing {
     }
 }
 
-val compatibleVersions = stonecutter.properties.rawOrNull("mod.mc_releases")?.asList()?.map { it.toString() } ?: listOf(minecraftVersion)
+val compatibleVersions = stonecutter.properties.rawOrNull("mod.mc_releases")?.asList()?.map { it.toString() }.orEmpty()
 val outputFile = loomx.modJar.flatMap { it.archiveFile }
-val changelogText = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOGS.md")).asText
+val changelogText = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
 val curseForgeToken = providers.environmentVariable("CURSEFORGE_TOKEN")
 val modrinthToken = providers.environmentVariable("MODRINTH_TOKEN")
 
@@ -115,9 +126,9 @@ publishMods {
     file.set(outputFile)
     dryRun = curseForgeToken.isPresent.not() || modrinthToken.isPresent.not()
     version = project.version.toString()
-    displayName = "${project.property("mod.name")} ${project.version}"
+    displayName = "${project.property("mod.name")} ${project.property("mod.version")} - Fabric ${minecraftVersion}"
     changelog = changelogText
-    type = BETA
+    type = STABLE
     modLoaders.add(project.name.substringAfterLast('-'))
     curseforge {
         projectId = property("publish.curseforge").toString()
