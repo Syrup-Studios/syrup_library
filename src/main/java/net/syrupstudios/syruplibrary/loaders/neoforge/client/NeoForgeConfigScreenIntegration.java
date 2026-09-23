@@ -12,9 +12,9 @@ import net.syrupstudios.syruplibrary.config.SyrupConfigManager;
 
 /** Registers a filtered config screen for the owning mod after client setup. */
 //? if >=1.21.11 {
-/*@EventBusSubscriber(modid = SyrupLibrary.MOD_ID, value = Dist.CLIENT)
-*///?} else
-@EventBusSubscriber(modid = SyrupLibrary.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@EventBusSubscriber(modid = SyrupLibrary.MOD_ID, value = Dist.CLIENT)
+//?} else
+//@EventBusSubscriber(modid = SyrupLibrary.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class NeoForgeConfigScreenIntegration {
     private NeoForgeConfigScreenIntegration() {}
 

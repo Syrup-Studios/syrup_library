@@ -7,8 +7,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 //? if >=1.21.11 {
-/*import net.minecraft.world.entity.Relative;
-*///?}
+import net.minecraft.world.entity.Relative;
+//?}
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -54,13 +54,13 @@ public final class SyrupTeleports {
         float pitch = Mth.clamp(target.pitch(), -90.0F, 90.0F);
         boolean moved;
         //? if >=1.21.11 {
-        /*moved = player.teleportTo(destination, position.x, position.y, position.z,
+        moved = player.teleportTo(destination, position.x, position.y, position.z,
                 Set.of(Relative.DELTA_X, Relative.DELTA_Y, Relative.DELTA_Z),
                 yaw, pitch, true);
-        *///?} else {
-        moved = player.teleportTo(destination, position.x, position.y, position.z, Set.of(),
+        //?} else {
+        /*moved = player.teleportTo(destination, position.x, position.y, position.z, Set.of(),
                 yaw, pitch);
-        //?}
+        *///?}
         return moved && player.level() == destination && player.position().equals(position)
                 && player.getYRot() == yaw && player.getXRot() == pitch
                 ? TeleportResult.SUCCESS

@@ -5,7 +5,7 @@ plugins {
     id("net.neoforged.moddev.legacyforge") version "2.0.147" apply false
 }
 
-stonecutter active "1.20.1-fabric"
+stonecutter active "26.3-fabric"
 
 stonecutter {
     parameters {
