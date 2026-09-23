@@ -104,7 +104,7 @@ publishMods {
     version = project.version.toString()
     displayName = "${project.property("mod.name")} ${project.property("mod.version")} - Neoforge ${minecraftVersion}"
     changelog = changelogText
-    type = STABLE
+    type = BETA
     modLoaders.add(project.name.substringAfterLast('-'))
     curseforge {
         projectId = property("publish.curseforge").toString()

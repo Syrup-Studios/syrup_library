@@ -76,5 +76,5 @@ dry-run mode automatically:
 env -u CURSEFORGE_TOKEN -u MODRINTH_TOKEN ./gradlew publishMods --no-parallel
 ```
 
-The release type is stable. The changelog comes from the root `CHANGELOG.md`; the file must exist
+The release type is beta. The changelog comes from the root `CHANGELOG.md`; the file must exist
 before a publish task runs.
