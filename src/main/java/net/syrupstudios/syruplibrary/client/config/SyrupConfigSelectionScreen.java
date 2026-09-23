@@ -4,24 +4,22 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.syrupstudios.syruplibrary.config.RegisteredConfig;
 
-import java.util.Comparator;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 
 /** Paged selection of the supplied registered configs. */
 final class SyrupConfigSelectionScreen extends ConfigScreen {
     private int page;
 
-    private final Collection<RegisteredConfig> configs;
+    private final List<RegisteredConfig> configs;
 
     SyrupConfigSelectionScreen(Screen parent, Collection<RegisteredConfig> configs, String title) {
         super(parent, Component.literal(title));
-        this.configs = List.copyOf(configs);
+        this.configs = configs.stream().sorted(Comparator.comparing(config -> config.spec().id())).toList();
     }
 
     @Override protected void init() {
-        List<RegisteredConfig> configs = this.configs.stream()
-                .sorted(Comparator.comparing(config -> config.spec().id())).toList();
         int rows = Math.max(1, (height - 110) / 24);
         int pages = Math.max(1, (configs.size() + rows - 1) / rows);
         page = Math.min(page, pages - 1);

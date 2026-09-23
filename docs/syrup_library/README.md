@@ -25,7 +25,7 @@ Use the [teleport guide](teleport/README.md) to capture locations and teleport p
 
 ## Add Syrup Library
 
-For Fabric and Minecraft 1.20.1, these examples target version `0.3.0+1.20.1-fabric`.
+For Fabric and Minecraft 1.20.1, these examples target version `0.4.0+1.20.1-fabric`.
 
 Add the Syrup Studios Maven repository and the dependency to your `build.gradle.kts` file:
 
@@ -35,7 +35,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation("net.syrupstudios:syrup_library:0.3.0+1.20.1-fabric")
+    modImplementation("net.syrupstudios:syrup_library:0.4.0+1.20.1-fabric")
 }
 ```
 
@@ -47,7 +47,7 @@ Also add Syrup Library to the `depends` object in `fabric.mod.json`:
     "fabricloader": ">=0.19.2",
     "minecraft": "1.20.1",
     "java": ">=17",
-    "syrup_library": ">=0.3.0"
+    "syrup_library": ">=0.4.0"
   }
 }
 ```
