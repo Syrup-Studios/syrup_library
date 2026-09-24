@@ -20,7 +20,7 @@ Supported Minecraft and loader targets:
 Version format:
 
 ```text
-net.syrupstudios:syrup_library:0.4.0+<minecraft>-<loader>
+net.syrupstudios:syrup_library:0.5.0+<minecraft>-<loader>
 ```
 
 Add the Minecraft 1.20.1 Fabric build to a Fabric Loom project:
@@ -31,14 +31,14 @@ repositories {
 }
 
 dependencies {
-    modImplementation("net.syrupstudios:syrup_library:0.4.0+1.20.1-fabric")
+    modImplementation("net.syrupstudios:syrup_library:0.5.0+1.20.1-fabric")
 }
 ```
 
 ## Build and run
 
 Build all configured targets with `./gradlew build`. Collect a target's jars under
-`build/libs/0.4.0/` with `./gradlew :1.20.1-fabric:buildAndCollect`. Run the 1.20.1 Fabric
+`build/libs/0.5.0/` with `./gradlew :1.20.1-fabric:buildAndCollect`. Run the 1.20.1 Fabric
 client with `./gradlew :1.20.1-fabric:runClient`, or the Forge server with
 `./gradlew :1.20.1-forge:runServer`. Loader run configurations use the shared `run/` directory.
 

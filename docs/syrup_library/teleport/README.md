@@ -9,6 +9,9 @@ Call the teleport API on the server thread. `TeleportTarget` stores a dimension,
 position, yaw, and pitch. The coordinates below are a fixed example chosen by
 the caller.
 
+Use `TeleportTarget.CODEC` to persist targets in a mod's saved data. It uses the
+fields `dim`, `pos`, `yaw`, and `pitch`.
+
 ```java
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
