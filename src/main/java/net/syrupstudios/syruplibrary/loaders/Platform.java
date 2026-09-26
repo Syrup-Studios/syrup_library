@@ -1,6 +1,9 @@
 package net.syrupstudios.syruplibrary.loaders;
 
+import net.minecraft.commands.CommandSourceStack;
+
 import java.nio.file.Path;
+import java.util.function.Predicate;
 
 /** Loader-specific services used by shared Syrup Library code. */
 public interface Platform {
@@ -25,4 +28,7 @@ public interface Platform {
 
     /** Returns the lowercase loader identifier. */
     String loader();
+
+    /** Creates a command permission predicate with the supplied vanilla fallback. */
+    Predicate<CommandSourceStack> commandPermission(String modId, String node, boolean allowByDefault);
 }

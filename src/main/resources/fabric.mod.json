@@ -23,6 +23,7 @@
   "depends": {
     "fabricloader": ">=${fl}",
     "minecraft": "${mc}",
-    "java": ">=${java}"
+    "java": ">=${java}",
+    "fabric-api": "*"
   }
 }

@@ -38,18 +38,26 @@ loomx.loom_version: "1.17.14"
 fabric:deps:
   "1.20.1":
     fabric_loader: "0.19.2"
+    fabric_api: "0.92.9+1.20.1"
     mod_menu: "7.2.2"
+    lucko_permission_api: "0.3.1"
   "1.21.1":
     fabric_loader: "0.19.3"
+    fabric_api: "0.116.12+1.21.1"
     mod_menu: "11.0.3"
+    lucko_permission_api: "0.3.1"
   "1.21.11":
     fabric_loader: "0.19.3"
+    fabric_api: "0.141.4+1.21.11"
     mod_menu: "17.0.0"
+    lucko_permission_api: "0.6.1"
   "26.2":
     fabric_loader: "0.19.3"
+    fabric_api: "0.160.0+26.2"
     mod_menu: "20.0.1"
   "26.3":
     fabric_loader: "0.19.5"
+    fabric_api: "0.160.7+26.3"
     mod_menu: "21.0.0-beta.1"
 
 forge:deps:

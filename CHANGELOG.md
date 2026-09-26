@@ -1,5 +1,6 @@
 # 0.5.0
 
+- Added `SyrupCommands` for command registration with loader-native permissions.
 - Added `TeleportTarget.CODEC` for persisting teleport targets.
 
 # 0.4.0

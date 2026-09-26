@@ -35,6 +35,15 @@ dependencies {
 }
 ```
 
+Declare commands during mod initialization with `SyrupCommands.register`:
+
+```java
+SyrupCommands.register("my_mod", commands ->
+        commands.everyone("home", command -> command.executes(context -> 1)));
+```
+
+Syrup Library attaches each command permission during declaration, before the server starts.
+
 ## Build and run
 
 Build all configured targets with `./gradlew build`. Collect a target's jars under

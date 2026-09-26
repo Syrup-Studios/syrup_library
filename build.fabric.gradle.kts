@@ -24,6 +24,7 @@ repositories {
         filter { groups.forEach(::includeGroup) }
     }
     strictMaven("https://maven.terraformersmc.com/", "Terraformers", "com.terraformersmc")
+    strictMaven("https://repo.maven.apache.org/maven2/", "Maven Central", "me.lucko")
 }
 
 dependencies {
@@ -34,6 +35,12 @@ dependencies {
     add("include", json5Dependency)
 
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
+    findProperty("deps.lucko_permission_api")?.let {
+        val permissionApi = "me.lucko:fabric-permissions-api:$it"
+        modImplementation(permissionApi)
+        include(permissionApi)
+    }
     // Runtime variant exposes Fabric API types referenced by widened Minecraft signatures.
     val modMenu = "com.terraformersmc:modmenu:${property("deps.mod_menu")}"
     modCompileOnly(modMenu) {
