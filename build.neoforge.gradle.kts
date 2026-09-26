@@ -95,8 +95,12 @@ publishing {
 val compatibleVersions = stonecutter.properties.rawOrNull("mod.mc_releases")?.asList()?.map { it.toString() }.orEmpty()
 val outputFile = tasks.named<Jar>("jar").flatMap { it.archiveFile }
 val changelogText = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
-val curseForgeToken = providers.environmentVariable("CURSEFORGE_TOKEN")
-val modrinthToken = providers.environmentVariable("MODRINTH_TOKEN")
+val curseForgeToken = providers.gradleProperty("publish.curseforge_token")
+    .orElse(providers.gradleProperty("CURSEFORGE_TOKEN"))
+    .orElse(providers.environmentVariable("CURSEFORGE_TOKEN"))
+val modrinthToken = providers.gradleProperty("publish.modrinth_token")
+    .orElse(providers.gradleProperty("MODRINTH_TOKEN"))
+    .orElse(providers.environmentVariable("MODRINTH_TOKEN"))
 
 publishMods {
     file.set(outputFile)

@@ -70,7 +70,16 @@ Put them in the user-level Gradle properties file, or provide
 
 ## CurseForge and Modrinth publishing
 
-Project IDs are in `stonecutter.properties.yaml`. Provide API tokens with environment variables:
+Project IDs are in `stonecutter.properties.yaml`. The preferred token setup is the user-level
+Gradle properties file at `~/.gradle/gradle.properties`:
+
+```properties
+publish.curseforge_token=your-token
+publish.modrinth_token=your-token
+```
+
+Gradle properties named `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN` are also supported. Environment
+variables are the fallback:
 
 ```shell
 CURSEFORGE_TOKEN=your-token \
@@ -78,8 +87,10 @@ MODRINTH_TOKEN=your-token \
 ./gradlew publishMods --no-parallel
 ```
 
-Both tokens are required for a real upload. When either token is missing, publishing runs in
-dry-run mode automatically:
+Token lookup uses `publish.curseforge_token`, then `CURSEFORGE_TOKEN`, then the
+`CURSEFORGE_TOKEN` environment variable. Modrinth uses the equivalent `publish.modrinth_token`,
+`MODRINTH_TOKEN`, then `MODRINTH_TOKEN` environment variable. Both tokens are required for a real
+upload. When either resolved token is missing, publishing runs in dry-run mode automatically:
 
 ```shell
 env -u CURSEFORGE_TOKEN -u MODRINTH_TOKEN ./gradlew publishMods --no-parallel
