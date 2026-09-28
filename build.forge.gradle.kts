@@ -40,6 +40,7 @@ legacyForge {
 
 dependencies {
     implementation(json5Dependency)
+    add("additionalRuntimeClasspath", json5Dependency)
     jarJar(json5Dependency)
 }
 

@@ -81,7 +81,7 @@ public final class ConfigEditorRegistry {
     private static final class TextAdapter implements Adapter<Object> {
         @Override public void create(SyrupConfigScreen screen, ConfigValue<Object> value, Object draft,
                                      Consumer<Object> set, Runnable changed, Runnable rebuild) {
-            screen.textField((String) draft, value.path(), 100, Math.max(32, screen.clientHeight() - 184), text -> {
+            screen.textField((String) draft, value.path(), 100, 20, text -> {
                 set.accept(text); changed.run();
             });
         }
@@ -98,7 +98,7 @@ public final class ConfigEditorRegistry {
     private static final class BooleanAdapter implements Adapter<Object> {
         @Override public void create(SyrupConfigScreen screen, ConfigValue<Object> value, Object draft,
                                      Consumer<Object> set, Runnable changed, Runnable rebuild) {
-            screen.button(value.path() + ": " + draft, screen.left(), 100, screen.contentWidth(), () -> {
+            screen.button(Boolean.TRUE.equals(draft) ? "On" : "Off", screen.left(), 100, screen.contentWidth(), () -> {
                 set.accept(!((Boolean) draft)); changed.run(); rebuild.run();
             });
         }
@@ -107,7 +107,7 @@ public final class ConfigEditorRegistry {
     private static final class ChoiceAdapter implements Adapter<Object> {
         @Override public void create(SyrupConfigScreen screen, ConfigValue<Object> value, Object draft,
                                      Consumer<Object> set, Runnable changed, Runnable rebuild) {
-            screen.button(value.path() + ": " + draft, screen.left(), 100, screen.contentWidth(), () -> {
+            screen.button(SyrupConfigScreen.humanize(String.valueOf(draft)), screen.left(), 100, screen.contentWidth(), () -> {
                 List<Object> choices = value.type().choices();
                 set.accept(choices.get((choices.indexOf(draft) + 1) % choices.size()));
                 changed.run(); rebuild.run();

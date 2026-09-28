@@ -1,9 +1,5 @@
 package net.syrupstudios.syruplibrary.client.config;
 
-//? if >=26 {
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-//?} else
-//import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.MultiLineEditBox;
 import net.minecraft.client.gui.components.StringWidget;
@@ -18,6 +14,7 @@ import java.util.function.Consumer;
 /** Native widgets and version-specific screen calls shared by the config screens. */
 public abstract class ConfigScreen extends Screen {
     protected final Screen parent;
+    private Component editorTooltip;
 
     ConfigScreen(Screen parent, Component title) {
         super(title);
@@ -29,19 +26,33 @@ public abstract class ConfigScreen extends Screen {
     public net.minecraft.client.gui.Font clientFont() { return font; }
     public int clientHeight() { return height; }
     public <W extends net.minecraft.client.gui.components.AbstractWidget> W widget(W widget) {
+        if (editorTooltip != null && !(widget instanceof Button)) widget.setTooltip(Tooltip.create(editorTooltip));
         return addRenderableWidget(widget);
     }
+    protected void editorTooltip(Component tooltip) { editorTooltip = tooltip; }
 
     public Button button(String text, int x, int y, int width, Runnable action) {
         Button button = Button.builder(Component.literal(text), ignored -> action.run())
                 .bounds(x, y, width, 20).build();
         button.setTooltip(Tooltip.create(Component.literal(text)));
-        return addRenderableWidget(button);
+        return widget(button);
     }
 
     public void label(String text, int y) {
-        addRenderableOnly(new StringWidget(left(), y, contentWidth(), 12,
-                Component.literal(font.plainSubstrByWidth(text, contentWidth())), font));
+        int width = contentWidth();
+        String shown = font.plainSubstrByWidth(text, width);
+        StringWidget widget = new StringWidget(left(), y, width, 12,
+                Component.literal(shown), font);
+        widget.setWidth(font.width(shown));
+        widget(widget);
+    }
+
+    protected void centeredLabel(String text, int x, int y, int width) {
+        String shown = font.plainSubstrByWidth(text, width);
+        int textWidth = font.width(shown);
+        StringWidget widget = new StringWidget(x + (width - textWidth) / 2, y, textWidth, 12,
+                Component.literal(shown), font);
+        addRenderableOnly(widget);
     }
 
     public void textField(String text, String label, int y, int fieldHeight, Consumer<String> changed) {
@@ -50,13 +61,14 @@ public abstract class ConfigScreen extends Screen {
         MultiLineEditBox field = MultiLineEditBox.builder().setX(left()).setY(y)
                 .build(font, contentWidth(), fieldHeight, name);
         //?} else {
-        /*MultiLineEditBox field = new MultiLineEditBox(font, left(), y, contentWidth(), fieldHeight,
+        /*MultiLineEditBox field = new MultiLineEditBox(font, left(), y,
+                contentWidth(), fieldHeight,
                 Component.empty(), name);
         *///?}
         field.setCharacterLimit(Integer.MAX_VALUE);
         field.setValue(text);
         field.setValueListener(changed);
-        addRenderableWidget(field);
+        widget(field);
     }
 
     protected void show(Screen screen) {
@@ -71,21 +83,6 @@ public abstract class ConfigScreen extends Screen {
     }
 
     @Override public void onClose() { show(parent); }
-
-    //? if >=26 {
-    @Override public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        extractBackground(graphics, mouseX, mouseY, delta);
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
-    }
-    //?} else {
-    /*@Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        //? if >=1.21.1 {
-        renderBackground(graphics, mouseX, mouseY, delta);
-        //?} else
-        //renderBackground(graphics);
-        super.render(graphics, mouseX, mouseY, delta);
-    }
-    *///?}
 
     private static final class DetailsScreen extends ConfigScreen {
         private final String text;

@@ -33,6 +33,9 @@ neoForge {
 
 dependencies {
     implementation(json5Dependency)
+    if (stonecutter.current.parsed <= "1.21.8") {
+        add("additionalRuntimeClasspath", json5Dependency)
+    }
     jarJar(json5Dependency)
 }
 

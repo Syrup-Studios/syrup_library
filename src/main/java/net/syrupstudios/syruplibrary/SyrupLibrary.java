@@ -19,6 +19,7 @@ public final class SyrupLibrary {
             return;
         }
         SyrupConfigManager.getInstance();
+        ExampleConfig.register();
         initialized = true;
         LOGGER.info("{} initialized", MOD_ID);
     }

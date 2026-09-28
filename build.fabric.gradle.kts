@@ -38,7 +38,9 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
     findProperty("deps.lucko_permission_api")?.let {
         val permissionApi = "me.lucko:fabric-permissions-api:$it"
-        modImplementation(permissionApi)
+        modImplementation(permissionApi) {
+            exclude(group = "net.fabricmc.fabric-api")
+        }
         include(permissionApi)
     }
     // Runtime variant exposes Fabric API types referenced by widened Minecraft signatures.
