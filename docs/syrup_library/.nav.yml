@@ -1,3 +1,7 @@
 nav:
  - Syrup Library: README.md
  - Configs: config
+ - Commands: commands
+ - Teleports: teleport
+ - Item data: item-data
+ - Player profiles: profiles

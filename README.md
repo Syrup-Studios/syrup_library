@@ -1,6 +1,6 @@
 # Syrup Library
 
-Shared configuration, item-data, and player-profile utilities for Syrup Studios mods.
+Shared config, command, teleport, item-data, and player-profile utilities for Syrup Studios mods.
 
 See the [setup and config guide](docs/syrup_library/README.md) for integration details.
 
@@ -15,12 +15,15 @@ Supported Minecraft and loader targets:
 - Minecraft 26.2: Fabric and NeoForge
 - Minecraft 26.3: Fabric and NeoForge
 
+The build uses Java 17 for Minecraft 1.20.1, Java 21 for Minecraft 1.21.x, and
+Java 25 for Minecraft 26.x.
+
 ## Maven coordinates
 
-Version format:
+Repository target version: `0.5.1`. Version format:
 
 ```text
-net.syrupstudios:syrup_library:0.5.0+<minecraft>-<loader>
+net.syrupstudios:syrup_library:0.5.1+<minecraft>-<loader>
 ```
 
 Add the Minecraft 1.20.1 Fabric build to a Fabric Loom project:
@@ -31,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation("net.syrupstudios:syrup_library:0.5.0+1.20.1-fabric")
+    modImplementation("net.syrupstudios:syrup_library:0.5.1+1.20.1-fabric")
 }
 ```
 
@@ -47,13 +50,11 @@ Syrup Library attaches each command permission during declaration, before the se
 ## Build and run
 
 Build all configured targets with `./gradlew build`. Collect a target's jars under
-`build/libs/0.5.0/` with `./gradlew :1.20.1-fabric:buildAndCollect`. Run the 1.20.1 Fabric
+`build/libs/0.5.1/` with `./gradlew :1.20.1-fabric:buildAndCollect`. Run the 1.20.1 Fabric
 client with `./gradlew :1.20.1-fabric:runClient`, or the Forge server with
 `./gradlew :1.20.1-forge:runServer`. Loader run configurations use the shared `run/` directory.
 
 ## Remote publishing
-
-Publishing notes for future me.
 
 The Maven repository is `https://maven.syrupstudios.net/releases/`. Set credentials before
 running `publish`:
@@ -87,14 +88,10 @@ MODRINTH_TOKEN=your-token \
 ./gradlew publishMods --no-parallel
 ```
 
-Token lookup uses `publish.curseforge_token`, then `CURSEFORGE_TOKEN`, then the
-`CURSEFORGE_TOKEN` environment variable. Modrinth uses the equivalent `publish.modrinth_token`,
-`MODRINTH_TOKEN`, then `MODRINTH_TOKEN` environment variable. Both tokens are required for a real
-upload. When either resolved token is missing, publishing runs in dry-run mode automatically:
-
-```shell
-env -u CURSEFORGE_TOKEN -u MODRINTH_TOKEN ./gradlew publishMods --no-parallel
-```
+For each service, lookup checks its lowercase `publish.*_token` Gradle property, its uppercase
+Gradle property, then its environment variable. Both tokens are required for a real
+upload. Publishing runs in dry-run mode automatically only when at least one token is absent
+from all supported Gradle-property and environment sources.
 
 The release type is beta. The changelog comes from the root `CHANGELOG.md`; the file must exist
 before a publish task runs.

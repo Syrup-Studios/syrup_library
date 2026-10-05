@@ -7,7 +7,7 @@ description: Learn how to create, register, read, validate, and reload a JSON5 c
 
 This guide explains how to use the Syrup Library config system. First, [add Syrup Library to your mod](../README.md#add-syrup-library).
 
-This guide documents the 0.3.0 generic config API. The typed wrapper API was
+This guide documents the current generic config API. The typed wrapper API was
 removed in 0.3.0. Existing consumers must stay on 0.2.0 or migrate and rebuild.
 
 A config specification defines the sections, values, defaults, and limits in one config file. This guide uses the term **specification** for this definition.
@@ -103,7 +103,7 @@ public final class ModConfig {
 
     /** Call this one time from the mod initializer. */
     public static void initialize() {
-        // This method loads and registers the config specification.
+        // Calling this method triggers class initialization, which registers the config.
     }
 }
 ```
@@ -138,60 +138,23 @@ public final class ExampleMod implements ModInitializer {
 
 If the file does not exist, the `register` method creates it. Then, the method loads the file. Register each config ID only one time.
 
-The library creates this type of file from the example specification:
+The generated file contains a comment for each section and value. For example:
 
 ```json5
-/*
- * Example Mod configuration.
- * Edit this file, then use the mod's reload command.
- */
+/* Example Mod configuration. */
 {
   // Settings that change gameplay.
   gameplay: {
-    /*
-     * Enable the main feature.
-     * Default: true
-     */
+    /* Enable the main feature. Default: true */
     enabled: true,
 
-    /*
-     * Maximum search radius in blocks.
-     * Default: 16 | Range: 1 ~ 128
-     */
-    search_radius: 16,
-
-    /*
-     * Channel name used by the feature.
-     * Default: "global"
-     */
-    channel: "global",
-
-    /*
-     * Dimension IDs where the feature is disabled.
-     * Default: ["minecraft:the_end"]
-     */
-    blocked_worlds: ["minecraft:the_end"]
-  },
-
-  // Settings for server administrators.
-  advanced: {
-    /*
-     * Control how much information the mod writes to the log.
-     * Default: "normal"
-     */
-    log_level: "normal",
-
-    /*
-     * Storage system that the mod uses.
-     * Requires a server restart.
-     * Default: "safe"
-     */
-    storage_mode: "safe"
+    /* Maximum search radius in blocks. Default: 16 | Range: 1 ~ 128 */
+    search_radius: 16
   }
 }
 ```
 
-JSON5 supports comments, object keys without quotation marks, and commas after the last value.
+JSON5 supports comments, unquoted object keys, and a comma after the last value.
 
 ## Read values
 
@@ -270,7 +233,9 @@ ConfigUpdateResult batch = ModConfig.FILE.updateAll(Map.of(
 ));
 ```
 
-Updates use the declared type, range, string validation, enum values, and string-list member checks. `update()` and `updateAll()` change memory only; use `updateAndSave()` or `updateAndSaveAll()` to save before publishing. A failed save leaves both the previous file and the active state unchanged. `save()` saves already-published configured values. Saves regenerate the schema output, including schema comments; custom file comments and unknown keys are removed. If the file system does not support atomic replacement, the save fails safely and leaves the previous file intact.
+Updates validate types, ranges, strings, enums, and list members. `update()` and `updateAll()` change memory only. Use `updateAndSave()` or `updateAndSaveAll()` to save before the new state becomes active. A failed save leaves the file and active state unchanged.
+
+`save()` writes the current configured values. It rewrites the file from the schema, which removes custom comments and unknown keys. Save fails if the file system cannot replace the file atomically.
 
 ## Restart-only values
 
@@ -381,8 +346,8 @@ import net.syrupstudios.syruplibrary.client.config.SyrupConfigScreen;
 Minecraft.getInstance().setScreen(SyrupConfigScreen.create(parent, "example_mod"));
 ```
 
-On Minecraft 26.2, use `Minecraft.getInstance().setScreenAndShow(...)` for
-the returned screen.
+On Minecraft 26.2 and 26.3, pass the returned screen to
+`Minecraft.getInstance().setScreenAndShow(...)` instead of `setScreen(...)`.
 
 `create(parent)` opens a selection screen for every registered config.
 `create(parent, "example_mod")` opens one config by ID and returns `null` when
@@ -396,9 +361,10 @@ save. Save errors and validation errors remain on the screen.
 Restart-required values show their normal configured/effective behavior after
 save: the configured value changes, while the effective value waits for restart.
 
-Use Previous setting and Next setting to move through settings. Select
-Description and limits to read the full field path, description, and limits.
-Select the status button to read validation, save, and restart messages.
+The settings appear in a scrolling list. Hover over a setting for its tooltip, which
+shows its path, description, and limits. For restart-required values, it also shows
+active and configured values. The Details button displays save status, validation,
+and restart messages.
 Booleans and enums use native controls. Numeric
 and string values use text fields, with multiline text in the native multiline
 editor. String lists provide item add and remove controls.
@@ -423,4 +389,5 @@ classes from a dedicated-server entrypoint.
 Supported targets are Fabric 1.20.1, 1.21.1, 1.21.11, 26.2, and 26.3; Forge
 1.20.1; and NeoForge 1.21.1, 1.21.11, 26.2, and 26.3. Fabric's optional ModMenu
 development versions are 7.2.2, 11.0.3, 17.0.0, 20.0.1, and 21.0.0-beta.1 for those Fabric
-targets. ModMenu is compile-only and is never bundled.
+targets. ModMenu is a compile-only dependency and is available in development runs.
+It is not bundled with Syrup Library.
