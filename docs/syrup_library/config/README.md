@@ -361,6 +361,11 @@ save. Save errors and validation errors remain on the screen.
 Restart-required values show their normal configured/effective behavior after
 save: the configured value changes, while the effective value waits for restart.
 
+Use the search field to filter by setting path or description. Filtering keeps
+unsaved edits. Reset all stages each declared default, including defaults for
+settings hidden by search. Save applies those values, and Cancel discards them. A
+search with no results shows a clear empty state.
+
 The settings appear in a scrolling list. Hover over a setting for its tooltip, which
 shows its path, description, and limits. For restart-required values, it also shows
 active and configured values. The Details button displays save status, validation,

@@ -31,7 +31,7 @@ public final class SyrupConfigScreen extends ConfigScreen {
     private static final String FAILURE_MESSAGE = "Save failed";
     private static final int FORM_WIDTH = 400;
     private static final int ROW_HEIGHT = 26;
-    private static final int LIST_TOP = 32;
+    private static final int LIST_TOP = 58;
     private static final int FOOTER_HEIGHT = 32;
 
     private final RegisteredConfig config;
@@ -46,8 +46,12 @@ public final class SyrupConfigScreen extends ConfigScreen {
     private int editorWidth;
     private String status = "Edits are not saved.";
     private String statusDetails = status;
+    private String search = "";
+    private EditBox searchField;
     private boolean saved;
     private boolean statusActionable;
+    private boolean resetListScroll;
+    private boolean searchChanged;
     private Button detailsButton;
     private Button closeButton;
 
@@ -110,13 +114,25 @@ public final class SyrupConfigScreen extends ConfigScreen {
 
     @Override protected void init() {
         centeredLabel(title.getString(), left(), 10, contentWidth());
-        double scrollAmount = settings == null ? 0 : settings.currentScrollAmount();
+        searchField = new EditBox(clientFont(), left(), 28, contentWidth(), 20,
+                Component.literal("Search settings"));
+        searchField.setMaxLength(Integer.MAX_VALUE);
+        searchField.setValue(search);
+        searchField.setResponder(value -> {
+            search = value;
+            resetListScroll = true;
+            searchChanged = true;
+        });
+        addRenderableWidget(searchField);
+        double scrollAmount = settings == null || resetListScroll ? 0 : settings.currentScrollAmount();
         settings = new SettingsList(width, height, LIST_TOP, height - FOOTER_HEIGHT, ROW_HEIGHT);
-        if (hasGeneralSection()) {
+        List<ConfigValue<?>> visibleValues = values.stream().filter(this::matchesSearch).toList();
+        if (visibleValues.isEmpty()) {
+            settings.addRow(new ConfigRow(values.isEmpty() ? "This config has no settings." : "No settings match your search.", "", LIST_TOP));
+        } else if (hasGeneralSection(visibleValues)) {
             settings.addRow(new ConfigRow("General", "", LIST_TOP + 4, true));
         }
-        if (values.isEmpty()) settings.addRow(new ConfigRow("This config has no settings.", "", LIST_TOP));
-        for (ConfigValue<?> value : values) {
+        for (ConfigValue<?> value : visibleValues) {
             ConfigRow row = new ConfigRow(humanize(value.path())
                     + (value.restartRequirement() == RestartRequirement.REQUIRED ? " (Restart)" : ""),
                     ConfigEditorRegistry.metadata(value), LIST_TOP + 4 + settings.children().size() * ROW_HEIGHT);
@@ -136,6 +152,7 @@ public final class SyrupConfigScreen extends ConfigScreen {
             settings.addRow(row);
         }
         settings.setScrollAmount(scrollAmount);
+        resetListScroll = false;
         addRenderableWidget(settings);
 
         int y = height - 28;
@@ -143,16 +160,50 @@ public final class SyrupConfigScreen extends ConfigScreen {
         if (statusActionable) detailsButton = button("Details", left(), y, actionWidth,
                 () -> details("Save status", statusDetails));
         int gap = statusActionable ? 4 : 0;
-        int buttonWidth = (contentWidth() - actionWidth - gap - 4) / 2;
-        button("Save", left() + actionWidth + gap, y, buttonWidth, this::save);
-        int closeX = left() + actionWidth + gap + buttonWidth + 4;
+        int buttonWidth = (contentWidth() - actionWidth - gap - 8) / 3;
+        int resetX = left() + actionWidth + gap;
+        Button resetButton = button("Reset all", resetX, y, buttonWidth, this::resetToDefaults);
+        resetButton.setTooltip(Tooltip.create(Component.literal(
+                "Stage defaults for all settings, including those hidden by search")));
+        int saveX = resetX + buttonWidth + 4;
+        button("Save", saveX, y, buttonWidth, this::save);
+        int closeX = saveX + buttonWidth + 4;
         closeButton = button(saved ? "Done" : "Cancel", closeX, y,
                 left() + contentWidth() - closeX, this::onClose);
         if (saved) closeButton.setTooltip(Tooltip.create(Component.literal(status)));
     }
 
-    private boolean hasGeneralSection() {
-        return !values.isEmpty() && values.stream().allMatch(value -> !value.path().contains("."));
+    @Override public void tick() {
+        super.tick();
+        if (!searchChanged) return;
+        searchChanged = false;
+        int cursor = searchField.getCursorPosition();
+        String selectedText = searchField.getHighlighted();
+        int selection = selectedText.isEmpty() ? cursor : search.lastIndexOf(selectedText, cursor);
+        if (selection < 0) selection = search.indexOf(selectedText);
+        int anchor = selectedText.isEmpty() ? cursor
+                : cursor == selection ? selection + selectedText.length() : selection;
+        rebuildWidgets();
+        setFocused(searchField);
+        searchField.setCursorPosition(cursor);
+        searchField.setHighlightPos(anchor);
+    }
+
+    private boolean hasGeneralSection(List<ConfigValue<?>> shownValues) {
+        return shownValues.stream().allMatch(value -> !value.path().contains("."));
+    }
+
+    private boolean matchesSearch(ConfigValue<?> value) {
+        if (search.isBlank()) return true;
+        String query = search.toLowerCase(java.util.Locale.ROOT);
+        return value.path().toLowerCase(java.util.Locale.ROOT).contains(query)
+                || String.join(" ", value.description()).toLowerCase(java.util.Locale.ROOT).contains(query);
+    }
+
+    private void resetToDefaults() {
+        for (ConfigValue<?> value : values) drafts.put(value, ConfigEditorRegistry.draft(value, value.defaultValue()));
+        changed();
+        rebuildWidgets();
     }
 
     static String humanize(String path) {
@@ -222,7 +273,12 @@ public final class SyrupConfigScreen extends ConfigScreen {
             try {
                 updates.put(value, ConfigEditorRegistry.normalize(value, draft));
             } catch (RuntimeException exception) {
-                int invalidIndex = values.indexOf(value) + (hasGeneralSection() ? 1 : 0);
+                if (!matchesSearch(value)) {
+                    search = value.path();
+                    resetListScroll = true;
+                }
+                int invalidIndex = values.stream().filter(this::matchesSearch).toList().indexOf(value)
+                        + (hasGeneralSection(values.stream().filter(this::matchesSearch).toList()) ? 1 : 0);
                 status = "Invalid value";
                 statusDetails = value.path() + ": " + usefulMessage(exception);
                 statusActionable = true;
