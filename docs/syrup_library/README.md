@@ -23,6 +23,10 @@ The same config code works with all supported mod loaders.
 
 Use the [teleport guide](teleport/README.md) to capture locations and teleport players.
 
+## SNBT documentation
+
+Use the [SNBT guide](snbt/README.md) to format and parse SNBT compounds.
+
 ## Add Syrup Library
 
 For Fabric and Minecraft 1.20.1, these examples use repository target version

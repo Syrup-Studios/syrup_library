@@ -2,7 +2,7 @@ mod:
   id: "syrup_library"
   name: "Syrup Library"
   group: "net.syrupstudios"
-  version: "0.5.1"
+  version: "0.6.0"
   description: "The Syrup Studio Library Mod."
   authors: "SodaSyrup"
   license: "RSL-1.0"
