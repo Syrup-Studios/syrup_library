@@ -7,14 +7,18 @@ import net.minecraft.commands.Commands;
 import net.syrupstudios.syruplibrary.loaders.Platform;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /** Registers loader-aware commands and their permission predicates. */
 public final class SyrupCommands {
     private static final List<CommandSpec> COMMANDS = new ArrayList<>();
+    private static final Set<String> SUBCOMMAND_PERMISSIONS = new HashSet<>();
+    private static final Set<String> ROOT_PERMISSIONS = new HashSet<>();
 
     private SyrupCommands() {}
 
@@ -44,8 +48,14 @@ public final class SyrupCommands {
             Objects.requireNonNull(access, "access");
             Objects.requireNonNull(extraRequirement, "extraRequirement");
             Objects.requireNonNull(configure, "configure");
+            String permissionNode = "command." + name;
+            String permissionKey = modId + "." + permissionNode;
+            if (SUBCOMMAND_PERMISSIONS.contains(permissionKey)) {
+                throw new IllegalArgumentException("Command permission conflicts with subcommand node: " + permissionKey);
+            }
+            ROOT_PERMISSIONS.add(permissionKey);
             COMMANDS.add(new CommandSpec(namespace, namespaced, aliases, name,
-                    Platform.INSTANCE.commandPermission(modId, "command." + name,
+                    Platform.INSTANCE.commandPermission(modId, permissionNode,
                             access == Access.EVERYONE), extraRequirement, configure));
         }
 
@@ -62,6 +72,32 @@ public final class SyrupCommands {
         public void admin(String name,
                           Consumer<LiteralArgumentBuilder<CommandSourceStack>> configure) {
             command(name, Access.GAME_MASTERS, configure);
+        }
+
+        /** Creates a named permission for a literal subcommand path. */
+        public Predicate<CommandSourceStack> subcommandPermission(
+                String root, String path, Access access,
+                Predicate<CommandSourceStack> extraRequirement) {
+            validateLiteral(root, "root");
+            Objects.requireNonNull(access, "access");
+            Objects.requireNonNull(extraRequirement, "extraRequirement");
+            String[] segments = Objects.requireNonNull(path, "path").split("\\.", -1);
+            for (String segment : segments) validateLiteral(segment, "path segment");
+            String node = "command." + root + "." + path;
+            String key = modId + "." + node;
+            if (ROOT_PERMISSIONS.contains(key)) {
+                throw new IllegalArgumentException("Subcommand permission conflicts with command node: " + key);
+            }
+            if (!SUBCOMMAND_PERMISSIONS.add(key)) {
+                throw new IllegalArgumentException("Duplicate command permission node: " + key);
+            }
+            Predicate<CommandSourceStack> permission = Platform.INSTANCE.commandPermission(
+                    modId, node, access == Access.EVERYONE);
+            return source -> permission.test(source) && extraRequirement.test(source);
+        }
+
+        public Predicate<CommandSourceStack> subcommandPermission(String root, String path, Access access) {
+            return subcommandPermission(root, path, access, source -> true);
         }
     }
 
@@ -102,6 +138,12 @@ public final class SyrupCommands {
     private static void validate(String value, String name) {
         if (Objects.requireNonNull(value, name).isBlank()) {
             throw new IllegalArgumentException(name + " must not be blank");
+        }
+    }
+
+    private static void validateLiteral(String value, String name) {
+        if (!Objects.requireNonNull(value, name).matches("[a-z0-9_-]+")) {
+            throw new IllegalArgumentException(name + " must contain only lowercase letters, digits, _ or -");
         }
     }
 
