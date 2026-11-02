@@ -1,6 +1,7 @@
 package net.syrupstudios.syruplibrary;
 
 import net.syrupstudios.syruplibrary.config.SyrupConfigManager;
+import net.syrupstudios.syruplibrary.command.ConfigCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +21,7 @@ public final class SyrupLibrary {
         }
         SyrupConfigManager.getInstance();
         ExampleConfig.register();
+        ConfigCommand.register();
         initialized = true;
         LOGGER.info("{} initialized", MOD_ID);
     }

@@ -3,7 +3,7 @@ package net.syrupstudios.syruplibrary.profile;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.server.MinecraftServer;
 //? if >=1.21.11
-import net.minecraft.server.players.ProfileResolver;
+//import net.minecraft.server.players.ProfileResolver;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 
 import java.util.Locale;
@@ -22,18 +22,18 @@ public final class SyrupProfiles {
     private static final Map<String, Long> FAILED_UNTIL = new ConcurrentHashMap<>();
     private static final AtomicLong CACHE_GENERATION = new AtomicLong();
     //? if >=1.21.11
-    private static volatile ProfileResolver PROFILE_RESOLVER;
+    //private static volatile ProfileResolver PROFILE_RESOLVER;
     private static final Pattern VALID_PLAYER_NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
     private static final long FAILURE_COOLDOWN_NANOS = TimeUnit.MINUTES.toNanos(10);
 
     private SyrupProfiles() {}
 
     //? if >=1.21.11 {
-    /** Sets the resolver required by Minecraft 1.21.11+ lookups; clear it when the server shuts down. */
+    /*/^* Sets the resolver required by Minecraft 1.21.11+ lookups; clear it when the server shuts down. ^/
     public static void setProfileResolver(MinecraftServer server) {
         PROFILE_RESOLVER = server == null ? null : server.services().profileResolver();
     }
-    //?}
+    *///?}
 
     /** Resolves a player profile asynchronously; the callback receives null on failure and may run on the completion thread. */
     public static void resolveProfileAsync(String ownerName, Consumer<GameProfile> callback) {
@@ -43,11 +43,11 @@ public final class SyrupProfiles {
             return;
         }
         //? if >=1.21.11 {
-        if (PROFILE_RESOLVER == null) {
+        /*if (PROFILE_RESOLVER == null) {
             callback.accept(null);
             return;
         }
-        //?}
+        *///?}
 
         String cacheKey = normalizedName.toLowerCase(Locale.ROOT);
         GameProfile cached = PROFILE_CACHE.get(cacheKey);
@@ -69,16 +69,16 @@ public final class SyrupProfiles {
         long generation = CACHE_GENERATION.get();
         try {
             //? if >=1.21.11 {
-            ProfileResolver resolver = PROFILE_RESOLVER;
+            /*ProfileResolver resolver = PROFILE_RESOLVER;
             CompletableFuture<GameProfile> lookup = resolver == null
                     ? CompletableFuture.completedFuture(null)
                     : CompletableFuture.supplyAsync(() -> resolver.fetchByName(normalizedName).orElse(null));
             lookup.whenComplete((profile, error) -> completeLookup(cacheKey, request, generation, profile, error));
-            //?} else if >=1.21 {
-            /*SkullBlockEntity.fetchGameProfile(normalizedName).whenComplete((optionalProfile, error) ->
+            *///?} else if >=1.21 {
+            SkullBlockEntity.fetchGameProfile(normalizedName).whenComplete((optionalProfile, error) ->
                     completeLookup(cacheKey, request, generation,
                             error == null ? optionalProfile.orElse(null) : null, error));
-            *///?} else {
+            //?} else {
             /*SkullBlockEntity.updateGameprofile(new GameProfile(null, normalizedName), profile ->
                     completeLookup(cacheKey, request, generation, profile, null));
             *///?}
@@ -102,13 +102,13 @@ public final class SyrupProfiles {
         if (profile != null || server == null || isFailureCoolingDown(cacheKey)) return profile;
 
         //? if >=1.21.11 {
-        PROFILE_RESOLVER = server.services().profileResolver();
+        /*PROFILE_RESOLVER = server.services().profileResolver();
         resolveProfileAsync(normalizedName, ignored -> {});
         return null;
-        //?} else if >=1.21 {
-        /*resolveProfileAsync(normalizedName, ignored -> {});
+        *///?} else if >=1.21 {
+        resolveProfileAsync(normalizedName, ignored -> {});
         return null;
-        *///?} else {
+        //?} else {
         /*try {
             profile = server.getProfileCache().get(normalizedName)
                     .map(cachedProfile -> server.getSessionService().fillProfileProperties(cachedProfile, true))
@@ -165,21 +165,21 @@ public final class SyrupProfiles {
 
     private static boolean hasTextures(GameProfile profile) {
         //? if >=1.21.11 {
-        return profile != null && profile.properties().containsKey("textures")
+        /*return profile != null && profile.properties().containsKey("textures")
                 && !profile.properties().get("textures").isEmpty();
-        //?} else {
-        /*return profile != null && profile.getProperties().containsKey("textures")
+        *///?} else {
+        return profile != null && profile.getProperties().containsKey("textures")
                 && !profile.getProperties().get("textures").isEmpty();
-        *///?}
+        //?}
     }
 
     private static void cacheProfile(String requestedKey, GameProfile profile) {
         PROFILE_CACHE.put(requestedKey, profile);
         //? if >=1.21.11 {
-        if (profile.name() != null) PROFILE_CACHE.put(profile.name().toLowerCase(Locale.ROOT), profile);
-        //?} else {
-        /*if (profile.getName() != null) PROFILE_CACHE.put(profile.getName().toLowerCase(Locale.ROOT), profile);
-        *///?}
+        /*if (profile.name() != null) PROFILE_CACHE.put(profile.name().toLowerCase(Locale.ROOT), profile);
+        *///?} else {
+        if (profile.getName() != null) PROFILE_CACHE.put(profile.getName().toLowerCase(Locale.ROOT), profile);
+        //?}
         FAILED_UNTIL.remove(requestedKey);
     }
 

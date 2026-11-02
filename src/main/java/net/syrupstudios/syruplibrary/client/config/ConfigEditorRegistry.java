@@ -1,8 +1,8 @@
 package net.syrupstudios.syruplibrary.client.config;
 
-import de.marhali.json5.Json5;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
+import net.syrupstudios.syruplibrary.config.Json5InputGuard;
 import net.syrupstudios.syruplibrary.config.value.ConfigType;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
 
@@ -22,7 +22,6 @@ public final class ConfigEditorRegistry {
         default T normalize(ConfigValue<T> value, Object draft) { return value.cast(draft); }
     }
 
-    private static final Json5 JSON5 = new Json5();
     private static final Map<ConfigType<?>, Adapter<?>> ADAPTERS = new ConcurrentHashMap<>();
     private static final Adapter<Object> READ_ONLY = (screen, value, draft, set, changed, rebuild) ->
             screen.label("This setting has no editor.", 100);
@@ -133,7 +132,7 @@ public final class ConfigEditorRegistry {
     }
 
     private static de.marhali.json5.Json5Element element(String text) {
-        var array = JSON5.parse("[" + text + "]").getAsJson5Array();
+        var array = Json5InputGuard.parse("[" + text + "]").getAsJson5Array();
         if (array.size() != 1) throw new IllegalArgumentException("Expected one value");
         return array.get(0);
     }

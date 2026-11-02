@@ -10,6 +10,55 @@ This guide explains how to use the Syrup Library config system. First, [add Syru
 This guide documents the current generic config API. The typed wrapper API was
 removed in 0.3.0. Existing consumers must stay on 0.2.0 or migrate and rebuild.
 
+## Edit selected configs on a server
+
+Server commands can read and update a config only when its specification opts in:
+
+```java
+private static final ConfigSpec SPEC = ConfigSpec.builder("example_mod")
+        .owner("example_mod")
+        .remotelyEditable()
+        .build();
+```
+
+The opt-in exposes every declared value in that config. Do not enable it for
+values that operators must not read or change. Every command requires vanilla
+permission level 4, including when a loader permission API is installed. This
+includes server operators and the server console. The server checks permission
+for each command action. The command runs on the server and saves changes to
+the config file. This is a command interface; it does not add an in-game GUI.
+
+Use these commands:
+
+```text
+/syrupconfig list
+/syrupconfig paths <config-id>
+/syrupconfig get <config-id> <value-path>
+/syrupconfig set <config-id> <value-path> <json5-value>
+```
+
+The namespaced command is also available as
+`/syrup_library:syrupconfig`. ID and path suggestions include only opted-in
+configs and their declared paths. `paths` lists up to 100 paths and about 3000
+characters per response. It reports when more paths exist.
+
+For example:
+
+```text
+/syrupconfig paths example_mod
+/syrupconfig get example_mod gameplay.search_radius
+/syrupconfig set example_mod gameplay.search_radius 32
+/syrupconfig set example_mod gameplay.enabled false
+/syrupconfig set example_mod gameplay.channel 'events'
+/syrupconfig set example_mod gameplay.blocked_worlds ['minecraft:the_end']
+```
+
+The value argument is one JSON5 value. Strings need quotes. The command uses
+the declared type and constraints to validate it. A failed parse, validation,
+or save leaves the prior configured state in place. For a value marked
+`RestartRequirement.REQUIRED`, `get` shows the saved configured value. The
+effective value stays at its startup value until the server restarts.
+
 A config specification defines the sections, values, defaults, and limits in one config file. This guide uses the term **specification** for this definition.
 
 ## Create a config specification
@@ -235,7 +284,7 @@ ConfigUpdateResult batch = ModConfig.FILE.updateAll(Map.of(
 
 Updates validate types, ranges, strings, enums, and list members. `update()` and `updateAll()` change memory only. Use `updateAndSave()` or `updateAndSaveAll()` to save before the new state becomes active. A failed save leaves the file and active state unchanged.
 
-`save()` writes the current configured values. It rewrites the file from the schema, which removes custom comments and unknown keys. Save fails if the file system cannot replace the file atomically.
+`save()` and `updateAndSave()` merge configured values into the existing JSON5 object. They keep unknown keys and comments that the JSON5 parser can attach to values and sections. A missing file is created. A malformed file, a non-object root, or a non-object value where the schema requires a section is left unchanged, and the save fails. File replacement must be atomic.
 
 ## Restart-only values
 

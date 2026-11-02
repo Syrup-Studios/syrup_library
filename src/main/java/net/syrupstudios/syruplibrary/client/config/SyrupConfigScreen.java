@@ -352,24 +352,24 @@ public final class SyrupConfigScreen extends ConfigScreen {
         @Override public List<? extends NarratableEntry> narratables() { return widgets; }
 
         //? if >=26.2 {
-        @Override public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+        /*@Override public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
                                              boolean hovered, float delta) {
             position(getY());
             for (AbstractWidget widget : widgets) widget.extractRenderState(graphics, mouseX, mouseY, delta);
         }
-        //?} else if >=1.21.11 {
+        *///?} else if >=1.21.11 {
         /*@Override public void renderContent(GuiGraphics graphics, int mouseX, int mouseY,
                                              boolean hovered, float delta) {
             position(getY());
             for (AbstractWidget widget : widgets) widget.render(graphics, mouseX, mouseY, delta);
         }
         *///?} else {
-        /*@Override public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
+        @Override public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
                                        int mouseX, int mouseY, boolean hovered, float delta) {
             position(top);
             for (AbstractWidget widget : widgets) widget.render(graphics, mouseX, mouseY, delta);
         }
-        *///?}
+        //?}
     }
 
     private final class SettingsList extends ContainerObjectSelectionList<ConfigRow> {
@@ -384,51 +384,51 @@ public final class SyrupConfigScreen extends ConfigScreen {
 
         private void addRow(ConfigRow row) {
             //? if >=1.21.11 {
-            addEntry(row, ROW_HEIGHT);
+            /*addEntry(row, ROW_HEIGHT);
             row.setBaseY(row.getY());
-            //?} else {
-            /*addEntry(row);
-            *///?}
+            *///?} else {
+            addEntry(row);
+            //?}
         }
 
         private double currentScrollAmount() {
             // Newer lists expose no scroll getter. Their entries track the native scroll position.
             //? if >=26.2 {
-            return children().isEmpty() ? 0 : children().get(0).baseY - children().get(0).getY();
-            //?} else if >=1.21.11 {
+            /*return children().isEmpty() ? 0 : children().get(0).baseY - children().get(0).getY();
+            *///?} else if >=1.21.11 {
             /*return children().isEmpty() ? 0 : children().get(0).baseY - children().get(0).getY();
             *///?} else {
-            /*return getScrollAmount();
-            *///?}
+            return getScrollAmount();
+            //?}
         }
 
         //? if >=1.21.11 && <26.2 {
         /*@Override public int getRowWidth() { return Math.min(FORM_WIDTH, getWidth() - 24) - 12; }
         *///?}
         //? if <1.21.11 {
-        /*@Override public int getRowWidth() {
+        @Override public int getRowWidth() {
             //? if <1.21.1 {
-            return Math.min(FORM_WIDTH, width - 24) - 12;
-            //?} else {
+            /*return Math.min(FORM_WIDTH, width - 24) - 12;
+            *///?} else {
             return Math.min(FORM_WIDTH, getWidth() - 24) - 12;
             //?}
         }
-        *///?}
+        //?}
         //? if <1.21.11 {
-        /*
+        
         @Override protected int getRowTop(int index) {
             //? if <1.21.1 {
-            return y0 + 4 + index * ROW_HEIGHT - (int) getScrollAmount();
-            //?} else {
+            /*return y0 + 4 + index * ROW_HEIGHT - (int) getScrollAmount();
+            *///?} else {
             return getY() + 4 + index * ROW_HEIGHT - (int) getScrollAmount();
             //?}
         }
         @Override protected int getRowBottom(int index) { return getRowTop(index) + ROW_HEIGHT; }
         @Override protected int getMaxPosition() { return children().size() * ROW_HEIGHT; }
-        *///?}
+        //?}
 
         //? if >=26.2 {
-        @Override public int getRowWidth() { return Math.min(FORM_WIDTH, getWidth() - 24); }
-        //?}
+        /*@Override public int getRowWidth() { return Math.min(FORM_WIDTH, getWidth() - 24); }
+        *///?}
     }
 }

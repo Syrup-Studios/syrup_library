@@ -19,11 +19,13 @@ public final class ConfigSpec extends ConfigContainer {
     private final List<ConfigValue<?>> values = new ArrayList<>();
     private volatile RegisteredConfig owner;
     private volatile boolean sealed;
+    private final boolean remotelyEditable;
 
-    private ConfigSpec(String id, String ownerId, List<String> header) {
+    private ConfigSpec(String id, String ownerId, List<String> header, boolean remotelyEditable) {
         this.id = validateId(id);
         this.ownerId = validateId(ownerId);
         this.header = List.copyOf(header);
+        this.remotelyEditable = remotelyEditable;
     }
 
     /** Starts a spec declaration for a validated config ID. */
@@ -39,6 +41,9 @@ public final class ConfigSpec extends ConfigContainer {
 
     /** Returns immutable file header lines. */
     public List<String> header() { return header; }
+
+    /** Returns whether operators may read and edit this config through server commands. */
+    public boolean remotelyEditable() { return remotelyEditable; }
 
     /** Returns values in schema declaration order. */
     public List<ConfigValue<?>> values() { return List.copyOf(values); }
@@ -143,6 +148,7 @@ public final class ConfigSpec extends ConfigContainer {
         private final String id;
         private String ownerId;
         private final List<String> header = new ArrayList<>();
+        private boolean remotelyEditable;
 
         private Builder(String id) {
             this.id = validateId(id);
@@ -152,6 +158,12 @@ public final class ConfigSpec extends ConfigContainer {
         /** Sets the owning mod ID used by loader config integrations. */
         public Builder owner(String ownerId) {
             this.ownerId = validateId(ownerId);
+            return this;
+        }
+
+        /** Allows level-4 operators to read and edit values through server commands. */
+        public Builder remotelyEditable() {
+            this.remotelyEditable = true;
             return this;
         }
 
@@ -168,7 +180,7 @@ public final class ConfigSpec extends ConfigContainer {
 
         /** Builds an unregistered spec; values and sections may be declared until registration. */
         public ConfigSpec build() {
-            return new ConfigSpec(id, ownerId, header);
+            return new ConfigSpec(id, ownerId, header, remotelyEditable);
         }
     }
 }

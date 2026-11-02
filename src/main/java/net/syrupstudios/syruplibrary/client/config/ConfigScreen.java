@@ -58,13 +58,13 @@ public abstract class ConfigScreen extends Screen {
     public void textField(String text, String label, int y, int fieldHeight, Consumer<String> changed) {
         Component name = Component.literal(label);
         //? if >=1.21.11 {
-        MultiLineEditBox field = MultiLineEditBox.builder().setX(left()).setY(y)
+        /*MultiLineEditBox field = MultiLineEditBox.builder().setX(left()).setY(y)
                 .build(font, contentWidth(), fieldHeight, name);
-        //?} else {
-        /*MultiLineEditBox field = new MultiLineEditBox(font, left(), y,
+        *///?} else {
+        MultiLineEditBox field = new MultiLineEditBox(font, left(), y,
                 contentWidth(), fieldHeight,
                 Component.empty(), name);
-        *///?}
+        //?}
         field.setCharacterLimit(Integer.MAX_VALUE);
         field.setValue(text);
         field.setValueListener(changed);
@@ -73,9 +73,9 @@ public abstract class ConfigScreen extends Screen {
 
     protected void show(Screen screen) {
         //? if >=26 {
-        minecraft.setScreenAndShow(screen);
-        //?} else
-        //minecraft.setScreen(screen);
+        /*minecraft.setScreenAndShow(screen);
+        *///?} else
+        minecraft.setScreen(screen);
     }
 
     protected void details(String title, String text) {

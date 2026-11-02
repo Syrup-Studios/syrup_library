@@ -1,6 +1,5 @@
 package net.syrupstudios.syruplibrary.config;
 
-import de.marhali.json5.Json5;
 import de.marhali.json5.Json5Element;
 import de.marhali.json5.Json5Object;
 import de.marhali.json5.Json5Primitive;
@@ -9,7 +8,6 @@ import net.syrupstudios.syruplibrary.config.diagnostic.ConfigIssueSeverity;
 import net.syrupstudios.syruplibrary.config.diagnostic.ConfigLoadResult;
 import net.syrupstudios.syruplibrary.config.value.ConfigValue;
 
-import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -19,8 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 final class ConfigLoader {
-    private static final Json5 JSON5 = new Json5();
-
     private ConfigLoader() {
     }
 
@@ -29,10 +25,7 @@ final class ConfigLoader {
         List<ConfigIssue> issues = new ArrayList<>();
         try {
             DefaultJson5Writer.createIfMissing(spec, registered.path());
-            Json5Element document;
-            try (Reader reader = Files.newBufferedReader(registered.path(), StandardCharsets.UTF_8)) {
-                document = JSON5.parse(reader);
-            }
+            Json5Element document = Json5InputGuard.parse(Files.readString(registered.path(), StandardCharsets.UTF_8));
             if (document == null || !document.isJson5Object()) {
                 throw new IllegalArgumentException("The JSON5 document root must be an object");
             }

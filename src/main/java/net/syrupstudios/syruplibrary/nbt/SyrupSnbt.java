@@ -72,10 +72,10 @@ public final class SyrupSnbt {
     /** Parses a compound from SNBT and propagates Minecraft's syntax error. */
     public static CompoundTag parseCompound(String snbt) throws CommandSyntaxException {
         //? if >=1.21.11 {
-        return TagParser.parseCompoundFully(snbt);
-        //?} else {
-        /*return TagParser.parseTag(snbt);
-        *///?}
+        /*return TagParser.parseCompoundFully(snbt);
+        *///?} else {
+        return TagParser.parseTag(snbt);
+        //?}
     }
 
     private static void appendIndent(StringBuilder result, int indent) {

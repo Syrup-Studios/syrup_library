@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -93,7 +92,7 @@ public final class RegisteredConfig {
             return new ConfigUpdateResult(true, issues, null);
         }
         try {
-            DefaultJson5Writer.writeAtomically(path, DefaultJson5Writer.render(spec, values));
+            DefaultJson5Writer.save(spec, path, values);
         } catch (Exception exception) {
             issues.add(error(path.toString(), "Could not save configuration: " + exception.getMessage(), null));
             return new ConfigUpdateResult(false, issues, exception);
@@ -121,9 +120,7 @@ public final class RegisteredConfig {
     /** Saves the latest configured values with an atomic file replacement. */
     public synchronized ConfigSaveResult save() {
         try {
-            Files.createDirectories(path.getParent());
-            DefaultJson5Writer.writeAtomically(path,
-                    DefaultJson5Writer.render(spec, state.configured().values()));
+            DefaultJson5Writer.save(spec, path, state.configured().values());
             return new ConfigSaveResult(true, List.of(), null);
         } catch (Exception exception) {
             ConfigIssue issue = error(path.toString(), "Could not save configuration: " + exception.getMessage(), null);

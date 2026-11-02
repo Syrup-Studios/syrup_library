@@ -28,7 +28,7 @@ final class DefaultJson5Writer {
         if (Files.exists(path)) {
             return;
         }
-        Path parent = path.getParent();
+        Path parent = path.toAbsolutePath().getParent();
         Files.createDirectories(parent);
         Path temporary = Files.createTempFile(parent, "." + spec.id() + "-", ".tmp");
         try {
@@ -49,12 +49,69 @@ final class DefaultJson5Writer {
         if (!hasMissing(existing, spec.root())) {
             return;
         }
-        Json5Object defaults = JSON5.parse(render(spec)).getAsJson5Object();
+        Json5Object defaults = Json5InputGuard.parse(render(spec)).getAsJson5Object();
         if (!mergeMissing(existing, defaults)) {
             return;
         }
 
         writeAtomically(path, serialize(existing));
+    }
+
+    static void save(ConfigSpec spec, Path path, Map<ConfigValue<?>, Object> values) throws IOException {
+        Files.createDirectories(path.toAbsolutePath().getParent());
+        Json5Object document;
+        if (Files.exists(path)) {
+            Json5Element parsed = Json5InputGuard.parse(Files.readString(path, StandardCharsets.UTF_8));
+            if (parsed == null || !parsed.isJson5Object()) {
+                throw new IOException("The JSON5 document root must be an object");
+            }
+            document = parsed.getAsJson5Object();
+        } else {
+            document = Json5InputGuard.parse(render(spec)).getAsJson5Object();
+        }
+        for (ConfigValue<?> value : spec.values()) {
+            Json5Element encoded = encode(value, values.get(value));
+            set(document, value.path().split("\\."), 0, encoded);
+        }
+        writeAtomically(path, serialize(document));
+    }
+
+    private static <T> Json5Element encode(ConfigValue<T> value, Object raw) {
+        return value.type().encode(value.cast(raw));
+    }
+
+    private static void set(Json5Object object, String[] path, int index, Json5Element value) throws IOException {
+        String key = path[index];
+        if (index + 1 < path.length) {
+            if (object.has(key) && !object.get(key).isJson5Object()) {
+                throw new IOException("Expected an object for config section: " + String.join(".", path));
+            }
+            Json5Object child = object.has(key) ? object.getAsJson5Object(key) : new Json5Object();
+            object.add(key, child);
+            set(child, path, index + 1, value);
+            return;
+        }
+        if (object.has(key)) {
+            copyComments(object.get(key), value);
+        }
+        object.add(key, value);
+    }
+
+    private static void copyComments(Json5Element source, Json5Element target) {
+        if (source.hasComment()) target.setComment(source.getComment());
+        if (source.isJson5Object() && target.isJson5Object()) {
+            Json5Object from = source.getAsJson5Object();
+            Json5Object to = target.getAsJson5Object();
+            for (String key : to.keySet()) {
+                if (from.has(key)) copyComments(from.get(key), to.get(key));
+            }
+        } else if (source.isJson5Array() && target.isJson5Array()) {
+            var from = source.getAsJson5Array();
+            var to = target.getAsJson5Array();
+            for (int index = 0; index < Math.min(from.size(), to.size()); index++) {
+                copyComments(from.get(index), to.get(index));
+            }
+        }
     }
 
     private static boolean hasMissing(Json5Object existing, SchemaNode schema) {
@@ -88,7 +145,8 @@ final class DefaultJson5Writer {
     }
 
     static void writeAtomically(Path path, String contents) throws IOException {
-        Path parent = path.getParent();
+        Path parent = path.toAbsolutePath().getParent();
+        Files.createDirectories(parent);
         Path temporary = Files.createTempFile(parent, "." + path.getFileName() + "-", ".tmp");
         boolean moved = false;
         try {
